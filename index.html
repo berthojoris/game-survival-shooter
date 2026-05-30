@@ -1,0 +1,1653 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Torpedo Tide</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --panel: rgba(3, 18, 35, .68);
+      --panel-strong: rgba(3, 18, 35, .9);
+      --cyan: #46f2ff;
+      --gold: #ffe66d;
+      --pink: #ff5fb8;
+      --green: #5cff9d;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #03172d;
+    }
+
+    body {
+      cursor: crosshair;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+    }
+
+    #hud {
+      position: fixed;
+      inset: 16px 16px auto 16px;
+      z-index: 3;
+      display: grid;
+      grid-template-columns: minmax(240px, 360px) 1fr auto;
+      gap: 12px;
+      align-items: start;
+      pointer-events: none;
+    }
+
+    .panel {
+      border: 1px solid rgba(94, 232, 255, .22);
+      border-radius: 18px;
+      padding: 12px 14px;
+      color: #eaffff;
+      background: linear-gradient(135deg, rgba(9, 34, 63, .82), rgba(3, 18, 35, .58));
+      box-shadow: 0 14px 40px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .08);
+      backdrop-filter: blur(10px);
+    }
+
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: rgba(234, 255, 255, .82);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stat {
+      border-radius: 14px;
+      padding: 8px;
+      background: rgba(0, 15, 32, .42);
+    }
+
+    .label {
+      display: block;
+      font-size: 10px;
+      line-height: 1;
+      color: rgba(205, 246, 255, .6);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .value {
+      display: block;
+      margin-top: 4px;
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 900;
+      color: white;
+      text-shadow: 0 0 14px rgba(70, 242, 255, .35);
+    }
+
+    .bars {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .bar {
+      overflow: hidden;
+      position: relative;
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(0, 10, 24, .72);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 100%;
+      border-radius: inherit;
+      transition: width .12s linear;
+    }
+
+    #healthFill {
+      background: linear-gradient(90deg, #ff4778, #ff9b54, #ffe66d);
+      box-shadow: 0 0 20px rgba(255, 92, 123, .42);
+    }
+
+    #shieldFill {
+      background: linear-gradient(90deg, #38a7ff, #46f2ff, #b8fff7);
+      box-shadow: 0 0 20px rgba(70, 242, 255, .44);
+    }
+
+    #powers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      justify-content: center;
+      min-height: 42px;
+    }
+
+    .power-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 84px;
+      border-radius: 999px;
+      padding: 8px 10px;
+      color: white;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      background: rgba(0, 18, 36, .58);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
+    }
+
+    .power-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      box-shadow: 0 0 15px currentColor;
+      background: currentColor;
+    }
+
+    #help {
+      max-width: 390px;
+      color: rgba(234, 255, 255, .78);
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    #help b {
+      color: white;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: white;
+      background: radial-gradient(circle at 50% 42%, rgba(13, 65, 99, .42), rgba(0, 7, 16, .78) 62%, rgba(0, 4, 10, .92));
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease;
+    }
+
+    .overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .card {
+      width: min(680px, calc(100vw - 32px));
+      border: 1px solid rgba(95, 242, 255, .26);
+      border-radius: 28px;
+      padding: 34px;
+      text-align: center;
+      background: linear-gradient(145deg, rgba(8, 36, 68, .92), rgba(2, 12, 27, .86));
+      box-shadow: 0 30px 90px rgba(0, 0, 0, .46), inset 0 1px 0 rgba(255, 255, 255, .1);
+      backdrop-filter: blur(16px);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(44px, 8vw, 82px);
+      line-height: .9;
+      letter-spacing: -.06em;
+      text-transform: uppercase;
+      text-shadow: 0 0 30px rgba(70, 242, 255, .42), 0 10px 45px rgba(0, 0, 0, .5);
+    }
+
+    .subtitle {
+      margin: 18px auto 0;
+      max-width: 560px;
+      color: rgba(226, 250, 255, .82);
+      font-size: 17px;
+      line-height: 1.55;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 190px;
+      margin-top: 26px;
+      border: 0;
+      border-radius: 999px;
+      padding: 15px 24px;
+      color: #02111f;
+      background: linear-gradient(90deg, var(--gold), #54fff1);
+      box-shadow: 0 16px 40px rgba(70, 242, 255, .28);
+      font: inherit;
+      font-size: 15px;
+      font-weight: 950;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .button:active {
+      transform: translateY(1px);
+    }
+
+    #overlayStats {
+      margin-top: 18px;
+      color: rgba(234, 255, 255, .72);
+      font-size: 13px;
+      min-height: 18px;
+    }
+
+    #banner {
+      position: fixed;
+      inset: 34% 0 auto;
+      z-index: 4;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: clamp(28px, 5vw, 58px);
+      font-weight: 950;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-shadow: 0 0 25px rgba(70, 242, 255, .72), 0 8px 30px rgba(0, 0, 0, .6);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(10px) scale(.98);
+      transition: opacity .15s ease, transform .15s ease;
+    }
+
+    #banner.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    @media (max-width: 860px) {
+      #hud {
+        grid-template-columns: 1fr;
+        inset: 10px;
+      }
+
+      #help {
+        display: none;
+      }
+
+      #powers {
+        justify-content: flex-start;
+      }
+
+      .panel {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Torpedo Tide game canvas"></canvas>
+
+  <div id="hud">
+    <div class="panel">
+      <div class="topline">
+        <span>Torpedo Tide</span>
+        <span id="status">Ready</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><span class="label">Wave</span><span class="value" id="wave">0</span></div>
+        <div class="stat"><span class="label">Score</span><span class="value" id="score">0</span></div>
+        <div class="stat"><span class="label">Kills</span><span class="value" id="kills">0</span></div>
+      </div>
+      <div class="bars">
+        <div class="bar" title="Health"><span id="healthFill"></span></div>
+        <div class="bar" title="Shield"><span id="shieldFill"></span></div>
+      </div>
+    </div>
+
+    <div class="panel" id="powers"></div>
+
+    <div class="panel" id="help">
+      <b>Move</b> WASD / Arrows &nbsp; <b>Aim</b> Mouse &nbsp; <b>Fire</b> Hold mouse / Space<br>
+      Grab powerups, kite the swarm, and clear every wave before the reef gets overrun.
+    </div>
+  </div>
+
+  <div id="banner"></div>
+
+  <div class="overlay show" id="overlay">
+    <div class="card">
+      <h1 id="overlayTitle">Torpedo Tide</h1>
+      <p class="subtitle" id="overlayText">
+        A tiny reef fish strapped with a torpedo cannon must survive waves of sharks, eels, squids, jellyfish, rays, and deep-sea bosses.
+      </p>
+      <button class="button" id="startButton" type="button">Start Run</button>
+      <div id="overlayStats">Powerups: rapid fire, triple shot, speed fins, shields, mega torpedoes, reef blasts, and health bubbles.</div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+      const overlay = document.getElementById('overlay');
+      const overlayTitle = document.getElementById('overlayTitle');
+      const overlayText = document.getElementById('overlayText');
+      const overlayStats = document.getElementById('overlayStats');
+      const startButton = document.getElementById('startButton');
+      const banner = document.getElementById('banner');
+      const hud = {
+        status: document.getElementById('status'),
+        wave: document.getElementById('wave'),
+        score: document.getElementById('score'),
+        kills: document.getElementById('kills'),
+        health: document.getElementById('healthFill'),
+        shield: document.getElementById('shieldFill'),
+        powers: document.getElementById('powers')
+      };
+
+      const TAU = Math.PI * 2;
+      const STORAGE_KEY = 'torpedo-tide-best';
+      const keys = new Set();
+      const pointer = { x: 0, y: 0, down: false, active: false };
+      const state = {
+        running: false,
+        paused: false,
+        over: false,
+        time: 0,
+        score: 0,
+        kills: 0,
+        wave: 0,
+        toSpawn: 0,
+        spawnTimer: 0,
+        waveActive: false,
+        nextWaveDelay: 0,
+        shake: 0,
+        best: Number(localStorage.getItem(STORAGE_KEY) || 0)
+      };
+
+      const player = {
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        r: 16,
+        hp: 100,
+        maxHp: 100,
+        shield: 30,
+        aim: 0,
+        invuln: 0,
+        fireTimer: 0,
+        baseSpeed: 285,
+        powers: Object.create(null)
+      };
+
+      const torpedoes = [];
+      const enemies = [];
+      const enemyShots = [];
+      const powerups = [];
+      const particles = [];
+      const floaters = [];
+      const bubbles = [];
+
+      const enemyData = {
+        piranha: { r: 13, hp: 24, speed: 185, damage: 8, score: 25 },
+        shark: { r: 29, hp: 88, speed: 115, damage: 18, score: 75 },
+        jelly: { r: 22, hp: 54, speed: 72, damage: 14, score: 55 },
+        eel: { r: 18, hp: 48, speed: 138, damage: 16, score: 70 },
+        squid: { r: 24, hp: 72, speed: 94, damage: 12, score: 90 },
+        ray: { r: 32, hp: 105, speed: 88, damage: 20, score: 120 },
+        megalodon: { r: 62, hp: 760, speed: 78, damage: 32, score: 1000 }
+      };
+
+      const powerData = {
+        rapid: { label: 'Rapid', color: '#ffe66d', duration: 8 },
+        triple: { label: 'Triple', color: '#ff7bdc', duration: 10 },
+        speed: { label: 'Speed', color: '#5cff9d', duration: 8 },
+        big: { label: 'Mega', color: '#ff9b54', duration: 9 },
+        shield: { label: 'Shield', color: '#46f2ff', duration: 0 },
+        heal: { label: 'Heal', color: '#88ff84', duration: 0 },
+        blast: { label: 'Blast', color: '#ffffff', duration: 0 }
+      };
+
+      let W = 0;
+      let H = 0;
+      let DPR = 1;
+      let last = 0;
+      let hudTimer = 0;
+
+      function rand(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function chance(value) {
+        return Math.random() < value;
+      }
+
+      function distance(a, b, x, y) {
+        return Math.hypot(a - x, b - y);
+      }
+
+      function resize() {
+        W = window.innerWidth;
+        H = window.innerHeight;
+        DPR = Math.min(2, window.devicePixelRatio || 1);
+        canvas.width = Math.floor(W * DPR);
+        canvas.height = Math.floor(H * DPR);
+        canvas.style.width = `${W}px`;
+        canvas.style.height = `${H}px`;
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        pointer.x = pointer.x || W * 0.5;
+        pointer.y = pointer.y || H * 0.5;
+        if (!state.running) {
+          player.x = W * 0.5;
+          player.y = H * 0.56;
+        }
+      }
+
+      function seedBubbles() {
+        bubbles.length = 0;
+        const count = Math.floor(Math.min(120, Math.max(52, (W * H) / 18000)));
+        for (let i = 0; i < count; i++) {
+          bubbles.push({
+            x: rand(0, W),
+            y: rand(0, H),
+            r: rand(1.2, 5.5),
+            speed: rand(18, 72),
+            sway: rand(0.3, 1.8),
+            phase: rand(0, TAU)
+          });
+        }
+      }
+
+      function showOverlay(title, text, button, stats) {
+        overlayTitle.textContent = title;
+        overlayText.textContent = text;
+        startButton.textContent = button;
+        overlayStats.textContent = stats || '';
+        overlay.classList.add('show');
+      }
+
+      function hideOverlay() {
+        overlay.classList.remove('show');
+      }
+
+      function showBanner(text) {
+        banner.textContent = text;
+        banner.classList.add('show');
+        window.clearTimeout(showBanner.timeout);
+        showBanner.timeout = window.setTimeout(() => banner.classList.remove('show'), 1100);
+      }
+
+      function startGame() {
+        torpedoes.length = 0;
+        enemies.length = 0;
+        enemyShots.length = 0;
+        powerups.length = 0;
+        particles.length = 0;
+        floaters.length = 0;
+        Object.assign(state, {
+          running: true,
+          paused: false,
+          over: false,
+          time: 0,
+          score: 0,
+          kills: 0,
+          wave: 0,
+          toSpawn: 0,
+          spawnTimer: 0,
+          waveActive: false,
+          nextWaveDelay: 0,
+          shake: 0,
+          best: Number(localStorage.getItem(STORAGE_KEY) || 0)
+        });
+        Object.assign(player, {
+          x: W * 0.5,
+          y: H * 0.56,
+          vx: 0,
+          vy: 0,
+          r: 16,
+          hp: 100,
+          maxHp: 100,
+          shield: 35,
+          aim: -Math.PI / 2,
+          invuln: 1,
+          fireTimer: 0,
+          baseSpeed: 285,
+          powers: Object.create(null)
+        });
+        hideOverlay();
+        startWave();
+        updateHud(true);
+      }
+
+      function endGame() {
+        state.over = true;
+        state.running = false;
+        if (state.score > state.best) {
+          state.best = state.score;
+          localStorage.setItem(STORAGE_KEY, String(state.best));
+        }
+        showOverlay(
+          'Run Over',
+          'The reef is still dangerous. Reload the torpedo cannon and try to push deeper into the feeding frenzy.',
+          'Try Again',
+          `Score ${state.score.toLocaleString()} · Wave ${state.wave} · Kills ${state.kills} · Best ${state.best.toLocaleString()}`
+        );
+      }
+
+      function togglePause(force) {
+        if (!state.running || state.over) return;
+        state.paused = typeof force === 'boolean' ? force : !state.paused;
+        if (state.paused) {
+          showOverlay('Paused', 'Catch your bubbles, then dive back into the swarm.', 'Resume', `Current score ${state.score.toLocaleString()}`);
+        } else {
+          hideOverlay();
+        }
+        updateHud(true);
+      }
+
+      function startWave() {
+        state.wave += 1;
+        state.waveActive = true;
+        state.toSpawn = 8 + state.wave * 4 + Math.floor(state.wave * state.wave * 0.16);
+        state.spawnTimer = 0.28;
+        state.nextWaveDelay = 0;
+        player.hp = Math.min(player.maxHp, player.hp + 8);
+        if (state.wave % 5 === 0) {
+          spawnEnemy('megalodon');
+        }
+        showBanner(`Wave ${state.wave}`);
+        addFloater(`Wave ${state.wave}`, player.x, player.y - 58, '#46f2ff', 1.4, 0, -30, 30);
+      }
+
+      function edgePoint(pad) {
+        const side = Math.floor(rand(0, 4));
+        if (side === 0) return { x: rand(-pad, W + pad), y: -pad };
+        if (side === 1) return { x: W + pad, y: rand(-pad, H + pad) };
+        if (side === 2) return { x: rand(-pad, W + pad), y: H + pad };
+        return { x: -pad, y: rand(-pad, H + pad) };
+      }
+
+      function pickEnemyType() {
+        const wave = state.wave;
+        const pool = [
+          ['piranha', 5.2],
+          ['shark', 3.8 + wave * 0.08]
+        ];
+        if (wave >= 2) pool.push(['jelly', 2.2 + wave * 0.04]);
+        if (wave >= 3) pool.push(['eel', 1.9 + wave * 0.05]);
+        if (wave >= 4) pool.push(['squid', 1.7 + wave * 0.04]);
+        if (wave >= 6) pool.push(['ray', 1.1 + wave * 0.035]);
+        const total = pool.reduce((sum, item) => sum + item[1], 0);
+        let roll = rand(0, total);
+        for (const item of pool) {
+          roll -= item[1];
+          if (roll <= 0) return item[0];
+        }
+        return 'shark';
+      }
+
+      function spawnEnemy(type) {
+        const data = enemyData[type];
+        const p = edgePoint(data.r + 55);
+        const waveHp = type === 'megalodon' ? data.hp + state.wave * 75 : data.hp * (1 + state.wave * 0.105);
+        const speedBoost = 1 + Math.min(0.55, state.wave * 0.018);
+        enemies.push({
+          type,
+          x: p.x,
+          y: p.y,
+          vx: 0,
+          vy: 0,
+          r: data.r,
+          hp: waveHp,
+          maxHp: waveHp,
+          speed: data.speed * speedBoost,
+          damage: data.damage,
+          score: data.score + state.wave * 8,
+          angle: Math.atan2(player.y - p.y, player.x - p.x),
+          phase: rand(0, TAU),
+          cooldown: rand(0.4, 1.8),
+          dash: 0,
+          spawnCooldown: rand(2.8, 4.2)
+        });
+      }
+
+      function spawnWaveEnemies(dt) {
+        if (!state.waveActive || state.toSpawn <= 0) return;
+        state.spawnTimer -= dt;
+        if (state.spawnTimer > 0) return;
+        let count = 1;
+        const type = pickEnemyType();
+        if (type === 'piranha' && chance(0.45)) count = Math.min(state.toSpawn, Math.floor(rand(2, 5)));
+        if (state.wave >= 8 && chance(0.14)) count = Math.min(state.toSpawn, count + 1);
+        for (let i = 0; i < count; i++) {
+          spawnEnemy(type);
+          state.toSpawn -= 1;
+        }
+        state.spawnTimer = Math.max(0.13, 0.72 - state.wave * 0.035) * rand(0.62, 1.18);
+      }
+
+      function updatePlayer(dt) {
+        const left = keys.has('KeyA') || keys.has('ArrowLeft');
+        const right = keys.has('KeyD') || keys.has('ArrowRight');
+        const up = keys.has('KeyW') || keys.has('ArrowUp');
+        const down = keys.has('KeyS') || keys.has('ArrowDown');
+        let mx = (right ? 1 : 0) - (left ? 1 : 0);
+        let my = (down ? 1 : 0) - (up ? 1 : 0);
+        if (mx || my) {
+          const len = Math.hypot(mx, my);
+          mx /= len;
+          my /= len;
+        }
+        const speed = player.baseSpeed * (player.powers.speed > 0 ? 1.48 : 1);
+        const ease = Math.min(1, dt * 13);
+        player.vx += (mx * speed - player.vx) * ease;
+        player.vy += (my * speed - player.vy) * ease;
+        player.x = clamp(player.x + player.vx * dt, player.r + 8, W - player.r - 8);
+        player.y = clamp(player.y + player.vy * dt, player.r + 8, H - player.r - 8);
+        player.aim = Math.atan2(pointer.y - player.y, pointer.x - player.x);
+        player.invuln = Math.max(0, player.invuln - dt);
+        player.fireTimer -= dt;
+        for (const key of Object.keys(player.powers)) {
+          player.powers[key] -= dt;
+          if (player.powers[key] <= 0) delete player.powers[key];
+        }
+        if (pointer.down || keys.has('Space') || keys.has('KeyJ')) {
+          fireTorpedo();
+        }
+      }
+
+      function fireDelay() {
+        return player.powers.rapid > 0 ? 0.072 : 0.145;
+      }
+
+      function fireTorpedo() {
+        if (player.fireTimer > 0) return;
+        player.fireTimer = fireDelay();
+        const spread = player.powers.triple > 0 ? [-0.2, 0, 0.2] : [0];
+        for (const offset of spread) {
+          const angle = player.aim + offset;
+          const big = player.powers.big > 0;
+          const speed = big ? 650 : 610;
+          const muzzle = {
+            x: player.x + Math.cos(angle) * 27 - Math.sin(angle) * 9,
+            y: player.y + Math.sin(angle) * 27 + Math.cos(angle) * 9
+          };
+          torpedoes.push({
+            x: muzzle.x,
+            y: muzzle.y,
+            vx: Math.cos(angle) * speed + player.vx * 0.16,
+            vy: Math.sin(angle) * speed + player.vy * 0.16,
+            angle,
+            r: big ? 8.5 : 5.5,
+            damage: big ? 54 : 28,
+            life: big ? 1.55 : 1.25,
+            pierce: big ? 2 : 1,
+            big
+          });
+          for (let i = 0; i < 4; i++) {
+            addParticle(
+              muzzle.x - Math.cos(angle) * 12,
+              muzzle.y - Math.sin(angle) * 12,
+              '#ffdd78',
+              rand(2, 5),
+              rand(0.16, 0.34),
+              -Math.cos(angle) * rand(70, 170) + rand(-55, 55),
+              -Math.sin(angle) * rand(70, 170) + rand(-55, 55)
+            );
+          }
+        }
+        player.vx -= Math.cos(player.aim) * 20;
+        player.vy -= Math.sin(player.aim) * 20;
+      }
+
+      function nearestEnemy(x, y, range) {
+        let best = null;
+        let bestDist = range;
+        for (const enemy of enemies) {
+          const d = distance(x, y, enemy.x, enemy.y);
+          if (d < bestDist) {
+            best = enemy;
+            bestDist = d;
+          }
+        }
+        return best;
+      }
+
+      function updateTorpedoes(dt) {
+        for (let i = torpedoes.length - 1; i >= 0; i--) {
+          const t = torpedoes[i];
+          t.life -= dt;
+          const target = nearestEnemy(t.x, t.y, t.big ? 220 : 140);
+          if (target) {
+            const desired = Math.atan2(target.y - t.y, target.x - t.x);
+            let diff = desired - t.angle;
+            diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+            t.angle += clamp(diff, -dt * 2.4, dt * 2.4);
+            const speed = Math.hypot(t.vx, t.vy);
+            t.vx = Math.cos(t.angle) * speed;
+            t.vy = Math.sin(t.angle) * speed;
+          }
+          t.x += t.vx * dt;
+          t.y += t.vy * dt;
+          if (chance(0.72)) {
+            addParticle(
+              t.x - Math.cos(t.angle) * 10,
+              t.y - Math.sin(t.angle) * 10,
+              'rgba(185,245,255,.7)',
+              rand(1.4, 3.5),
+              rand(0.22, 0.48),
+              rand(-30, 30),
+              rand(-30, 30)
+            );
+          }
+          if (t.life <= 0 || t.x < -80 || t.x > W + 80 || t.y < -80 || t.y > H + 80) {
+            torpedoes.splice(i, 1);
+          }
+        }
+      }
+
+      function moveEnemy(e, angle, speed, dt, turn) {
+        const tx = Math.cos(angle) * speed;
+        const ty = Math.sin(angle) * speed;
+        const ease = Math.min(1, dt * turn);
+        e.vx += (tx - e.vx) * ease;
+        e.vy += (ty - e.vy) * ease;
+        e.x += e.vx * dt;
+        e.y += e.vy * dt;
+        e.angle = Math.atan2(e.vy, e.vx);
+      }
+
+      function updateEnemies(dt) {
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          const e = enemies[i];
+          const toPlayer = Math.atan2(player.y - e.y, player.x - e.x);
+          const d = distance(e.x, e.y, player.x, player.y);
+          e.cooldown -= dt;
+          e.phase += dt;
+
+          if (e.type === 'piranha') {
+            moveEnemy(e, toPlayer + Math.sin(state.time * 8 + e.phase) * 0.38, e.speed, dt, 8);
+          } else if (e.type === 'shark') {
+            const lead = Math.atan2(player.y + player.vy * 0.18 - e.y, player.x + player.vx * 0.18 - e.x);
+            moveEnemy(e, lead, e.speed, dt, 5.5);
+          } else if (e.type === 'jelly') {
+            moveEnemy(e, toPlayer + Math.sin(state.time * 2.6 + e.phase) * 0.9, e.speed, dt, 3.2);
+            if (chance(0.08)) {
+              addParticle(e.x + rand(-e.r, e.r), e.y + rand(-e.r, e.r), 'rgba(173,125,255,.5)', rand(2, 5), rand(.35, .8), rand(-18, 18), rand(-18, 18));
+            }
+          } else if (e.type === 'eel') {
+            if (e.dash > 0) {
+              e.dash -= dt;
+              moveEnemy(e, toPlayer, e.speed * 2.65, dt, 16);
+            } else {
+              moveEnemy(e, toPlayer + Math.sin(state.time * 5 + e.phase) * 0.55, e.speed * 0.9, dt, 5.5);
+              if (e.cooldown <= 0 && d < 520) {
+                e.dash = 0.34;
+                e.cooldown = rand(1.1, 1.8);
+                addFloater('Dash', e.x, e.y - 20, '#ffe66d', .55, 0, -26, 16);
+              }
+            }
+          } else if (e.type === 'squid') {
+            const desired = d < 230 ? toPlayer + Math.PI : toPlayer + Math.sin(state.time * 2 + e.phase) * 0.65;
+            moveEnemy(e, desired, d < 230 ? e.speed * 1.24 : e.speed, dt, 3.8);
+            if (e.cooldown <= 0 && d < 720) {
+              shootInk(e, toPlayer);
+              e.cooldown = rand(1.05, 1.85) * Math.max(.58, 1 - state.wave * .015);
+            }
+          } else if (e.type === 'ray') {
+            const orbit = toPlayer + Math.sin(state.time * 1.8 + e.phase) * 1.1;
+            moveEnemy(e, orbit, e.speed * (d > 260 ? 1.25 : .78), dt, 3.6);
+            if (e.cooldown <= 0 && d < 460) {
+              spawnShock(e.x, e.y, 70, false);
+              e.cooldown = rand(3.0, 4.8);
+            }
+          } else if (e.type === 'megalodon') {
+            e.spawnCooldown -= dt;
+            if (e.dash > 0) {
+              e.dash -= dt;
+              moveEnemy(e, toPlayer, e.speed * 2.55, dt, 12);
+            } else {
+              moveEnemy(e, toPlayer + Math.sin(state.time * 1.2) * 0.32, e.speed, dt, 2.6);
+              if (e.cooldown <= 0 && d < 760) {
+                e.dash = .62;
+                e.cooldown = rand(3.1, 4.4);
+                showBanner('Mega Charge');
+              }
+            }
+            if (e.spawnCooldown <= 0) {
+              const adds = state.wave >= 10 ? 3 : 2;
+              for (let a = 0; a < adds; a++) spawnEnemy(chance(.5) ? 'piranha' : 'eel');
+              e.spawnCooldown = rand(4.6, 6.8);
+            }
+            if (chance(0.018)) {
+              shootInk(e, toPlayer + rand(-.35, .35), 1.45);
+            }
+          }
+        }
+      }
+
+      function shootInk(e, angle, scale = 1) {
+        const speed = 250 * scale + state.wave * 5;
+        enemyShots.push({
+          x: e.x + Math.cos(angle) * e.r,
+          y: e.y + Math.sin(angle) * e.r,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          r: 7 * scale,
+          life: 3,
+          damage: 10 * scale,
+          color: e.type === 'megalodon' ? '#9bfffd' : '#9b71ff'
+        });
+      }
+
+      function updateEnemyShots(dt) {
+        for (let i = enemyShots.length - 1; i >= 0; i--) {
+          const s = enemyShots[i];
+          s.life -= dt;
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
+          s.vx *= 1 - dt * .08;
+          s.vy *= 1 - dt * .08;
+          if (chance(.4)) addParticle(s.x, s.y, s.color, rand(1.4, 3.4), rand(.25, .55), rand(-20, 20), rand(-20, 20));
+          if (s.life <= 0 || s.x < -90 || s.x > W + 90 || s.y < -90 || s.y > H + 90) enemyShots.splice(i, 1);
+        }
+      }
+
+      function handleCollisions() {
+        for (let i = torpedoes.length - 1; i >= 0; i--) {
+          const t = torpedoes[i];
+          let spent = false;
+          for (let j = enemies.length - 1; j >= 0; j--) {
+            const e = enemies[j];
+            if (distance(t.x, t.y, e.x, e.y) <= t.r + e.r) {
+              damageEnemy(e, j, t.damage, t.big);
+              t.pierce -= 1;
+              burst(t.x, t.y, t.big ? '#ffe66d' : '#79f7ff', t.big ? 22 : 10, t.big ? 210 : 120);
+              state.shake = Math.max(state.shake, t.big ? 9 : 4);
+              if (t.big) splashDamage(t.x, t.y, 76, t.damage * .45);
+              if (t.pierce <= 0) {
+                spent = true;
+                break;
+              }
+            }
+          }
+          if (spent) torpedoes.splice(i, 1);
+        }
+
+        for (let i = enemyShots.length - 1; i >= 0; i--) {
+          const s = enemyShots[i];
+          if (distance(s.x, s.y, player.x, player.y) <= s.r + player.r) {
+            damagePlayer(s.damage);
+            enemyShots.splice(i, 1);
+            burst(s.x, s.y, s.color, 16, 130);
+          }
+        }
+
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          const e = enemies[i];
+          const d = distance(e.x, e.y, player.x, player.y);
+          if (d <= e.r + player.r) {
+            damagePlayer(e.damage);
+            const angle = Math.atan2(player.y - e.y, player.x - e.x);
+            player.vx += Math.cos(angle) * 290;
+            player.vy += Math.sin(angle) * 290;
+            e.vx -= Math.cos(angle) * 140;
+            e.vy -= Math.sin(angle) * 140;
+            if (e.type === 'piranha') damageEnemy(e, i, 20, false);
+          }
+        }
+
+        for (let i = powerups.length - 1; i >= 0; i--) {
+          const p = powerups[i];
+          if (distance(p.x, p.y, player.x, player.y) <= p.r + player.r + 8) {
+            applyPowerup(p.type);
+            burst(p.x, p.y, powerData[p.type].color, 24, 180);
+            powerups.splice(i, 1);
+          }
+        }
+      }
+
+      function damageEnemy(e, index, amount, heavy) {
+        e.hp -= amount;
+        const angle = Math.atan2(e.y - player.y, e.x - player.x);
+        e.vx += Math.cos(angle) * (heavy ? 120 : 55);
+        e.vy += Math.sin(angle) * (heavy ? 120 : 55);
+        addFloater(Math.ceil(amount).toString(), e.x + rand(-8, 8), e.y - e.r, heavy ? '#ffe66d' : '#b9f8ff', .55, rand(-8, 8), -42, 16);
+        if (e.hp <= 0) killEnemy(e, index);
+      }
+
+      function killEnemy(e, index) {
+        enemies.splice(index, 1);
+        state.score += Math.round(e.score);
+        state.kills += 1;
+        const color = e.type === 'jelly' ? '#be8cff' : e.type === 'eel' ? '#ffe66d' : e.type === 'squid' ? '#ff83e6' : '#6ff5ff';
+        burst(e.x, e.y, color, e.type === 'megalodon' ? 90 : 30, e.type === 'megalodon' ? 360 : 210);
+        addFloater(`+${Math.round(e.score)}`, e.x, e.y - e.r - 8, '#ffe66d', .85, 0, -52, 20);
+        if (e.type === 'jelly') spawnShock(e.x, e.y, 85, true);
+        if (e.type === 'megalodon') {
+          state.score += state.wave * 300;
+          showBanner('Boss Sunk');
+          for (let i = 0; i < 4; i++) spawnPowerup(e.x + rand(-80, 80), e.y + rand(-60, 60), true);
+        } else if (chance(Math.min(.32, .115 + state.wave * .008))) {
+          spawnPowerup(e.x, e.y, false);
+        }
+      }
+
+      function splashDamage(x, y, radius, amount) {
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          const e = enemies[i];
+          const d = distance(x, y, e.x, e.y);
+          if (d <= radius + e.r) {
+            damageEnemy(e, i, amount * (1 - d / (radius + e.r)) + 8, true);
+          }
+        }
+      }
+
+      function spawnShock(x, y, radius, friendly) {
+        for (let i = 0; i < 34; i++) {
+          const a = rand(0, TAU);
+          const r = rand(10, radius);
+          addParticle(x + Math.cos(a) * r, y + Math.sin(a) * r, friendly ? '#b88cff' : '#46f2ff', rand(2, 5), rand(.22, .5), Math.cos(a) * rand(60, 190), Math.sin(a) * rand(60, 190));
+        }
+        if (!friendly && distance(x, y, player.x, player.y) < radius + player.r) damagePlayer(14);
+      }
+
+      function damagePlayer(amount) {
+        if (player.invuln > 0) return;
+        player.invuln = .52;
+        state.shake = Math.max(state.shake, 12);
+        let remaining = amount;
+        if (player.shield > 0) {
+          const absorbed = Math.min(player.shield, remaining);
+          player.shield -= absorbed;
+          remaining -= absorbed;
+        }
+        if (remaining > 0) {
+          player.hp -= remaining;
+          addFloater(`-${Math.ceil(remaining)}`, player.x, player.y - 28, '#ff6b8f', .75, 0, -48, 20);
+        } else {
+          addFloater('Blocked', player.x, player.y - 28, '#46f2ff', .65, 0, -42, 18);
+        }
+        if (player.hp <= 0) {
+          player.hp = 0;
+          burst(player.x, player.y, '#ff6b8f', 90, 330);
+          endGame();
+        }
+      }
+
+      function spawnPowerup(x, y, guaranteed) {
+        const pool = guaranteed
+          ? ['rapid', 'triple', 'speed', 'big', 'shield', 'heal', 'blast']
+          : ['rapid', 'triple', 'speed', 'big', 'shield', 'heal', 'heal', 'blast'];
+        const type = pool[Math.floor(rand(0, pool.length))];
+        powerups.push({
+          type,
+          x,
+          y,
+          vx: rand(-45, 45),
+          vy: rand(-45, 45),
+          r: 17,
+          life: guaranteed ? 17 : 12,
+          phase: rand(0, TAU)
+        });
+      }
+
+      function updatePowerups(dt) {
+        for (let i = powerups.length - 1; i >= 0; i--) {
+          const p = powerups[i];
+          p.life -= dt;
+          p.phase += dt * 5;
+          const d = distance(p.x, p.y, player.x, player.y);
+          if (d < 150) {
+            const pull = (1 - d / 150) * 440;
+            p.vx += ((player.x - p.x) / Math.max(d, 1)) * pull * dt;
+            p.vy += ((player.y - p.y) / Math.max(d, 1)) * pull * dt;
+          }
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vx *= 1 - dt * 1.2;
+          p.vy *= 1 - dt * 1.2;
+          if (p.life <= 0) powerups.splice(i, 1);
+        }
+      }
+
+      function applyPowerup(type) {
+        const data = powerData[type];
+        if (data.duration) {
+          player.powers[type] = data.duration;
+        } else if (type === 'shield') {
+          player.shield = Math.min(140, player.shield + 65);
+        } else if (type === 'heal') {
+          player.hp = Math.min(player.maxHp, player.hp + 38);
+        } else if (type === 'blast') {
+          state.shake = Math.max(state.shake, 22);
+          for (let i = enemies.length - 1; i >= 0; i--) damageEnemy(enemies[i], i, 90 + state.wave * 8, true);
+          burst(player.x, player.y, '#ffffff', 100, 430);
+        }
+        addFloater(data.label, player.x, player.y - 44, data.color, 1, 0, -50, 22);
+      }
+
+      function addParticle(x, y, color, size, life, vx, vy) {
+        particles.push({ x, y, color, size, life, maxLife: life, vx, vy });
+      }
+
+      function burst(x, y, color, count, force) {
+        for (let i = 0; i < count; i++) {
+          const a = rand(0, TAU);
+          const speed = rand(force * .18, force);
+          addParticle(x, y, color, rand(1.5, 6.5), rand(.22, .9), Math.cos(a) * speed, Math.sin(a) * speed);
+        }
+      }
+
+      function addFloater(text, x, y, color, life, vx, vy, size) {
+        floaters.push({ text, x, y, color, life, maxLife: life, vx, vy, size });
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.life -= dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vx *= 1 - dt * 2.3;
+          p.vy *= 1 - dt * 2.3;
+          p.y -= dt * 10;
+          if (p.life <= 0) particles.splice(i, 1);
+        }
+        for (let i = floaters.length - 1; i >= 0; i--) {
+          const f = floaters[i];
+          f.life -= dt;
+          f.x += f.vx * dt;
+          f.y += f.vy * dt;
+          if (f.life <= 0) floaters.splice(i, 1);
+        }
+      }
+
+      function updateBubbles(dt) {
+        for (const b of bubbles) {
+          b.phase += dt * b.sway;
+          b.y -= b.speed * dt;
+          b.x += Math.sin(b.phase) * dt * 14;
+          if (b.y < -20) {
+            b.y = H + rand(12, 80);
+            b.x = rand(0, W);
+            b.r = rand(1.2, 5.5);
+            b.speed = rand(18, 72);
+          }
+        }
+      }
+
+      function checkWave(dt) {
+        if (state.waveActive && state.toSpawn <= 0 && enemies.length === 0) {
+          state.waveActive = false;
+          state.nextWaveDelay = 2.4;
+          const bonus = state.wave * 120;
+          state.score += bonus;
+          showBanner('Wave Clear');
+          addFloater(`Wave Bonus +${bonus}`, player.x, player.y - 62, '#ffe66d', 1.25, 0, -44, 23);
+          spawnPowerup(clamp(player.x + rand(-90, 90), 30, W - 30), clamp(player.y + rand(-80, 80), 30, H - 30), true);
+        }
+        if (!state.waveActive && state.nextWaveDelay > 0) {
+          state.nextWaveDelay -= dt;
+          if (state.nextWaveDelay <= 0) startWave();
+        }
+      }
+
+      function update(dt) {
+        state.time += dt;
+        state.shake = Math.max(0, state.shake - dt * 28);
+        updateBubbles(dt);
+        updatePlayer(dt);
+        spawnWaveEnemies(dt);
+        updateEnemies(dt);
+        updateTorpedoes(dt);
+        updateEnemyShots(dt);
+        updatePowerups(dt);
+        handleCollisions();
+        updateParticles(dt);
+        checkWave(dt);
+        hudTimer -= dt;
+        if (hudTimer <= 0) {
+          updateHud(false);
+          hudTimer = .08;
+        }
+      }
+
+      function updateHud(force) {
+        if (!force && !state.running) return;
+        hud.status.textContent = state.paused ? 'Paused' : state.running ? (state.waveActive ? `${Math.max(0, state.toSpawn)} incoming` : 'Regroup') : 'Ready';
+        hud.wave.textContent = state.wave.toString();
+        hud.score.textContent = state.score.toLocaleString();
+        hud.kills.textContent = state.kills.toLocaleString();
+        hud.health.style.width = `${clamp(player.hp / player.maxHp, 0, 1) * 100}%`;
+        hud.shield.style.width = `${clamp(player.shield / 140, 0, 1) * 100}%`;
+        hud.powers.textContent = '';
+        const active = Object.keys(player.powers);
+        if (!active.length) {
+          const empty = document.createElement('span');
+          empty.className = 'power-pill';
+          empty.style.color = 'rgba(234,255,255,.55)';
+          empty.textContent = 'No boosts';
+          hud.powers.appendChild(empty);
+        } else {
+          for (const type of active) {
+            const data = powerData[type];
+            const pill = document.createElement('span');
+            const dot = document.createElement('span');
+            const label = document.createElement('span');
+            pill.className = 'power-pill';
+            dot.className = 'power-dot';
+            pill.style.color = data.color;
+            label.textContent = `${data.label} ${Math.ceil(player.powers[type])}`;
+            pill.append(dot, label);
+            hud.powers.appendChild(pill);
+          }
+        }
+      }
+
+      function drawBackground() {
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, '#07345c');
+        grad.addColorStop(.45, '#052448');
+        grad.addColorStop(1, '#010b18');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.save();
+        ctx.globalAlpha = .16;
+        for (let i = 0; i < 10; i++) {
+          const y = (i / 9) * H + Math.sin(state.time * .5 + i) * 18;
+          ctx.beginPath();
+          for (let x = -40; x <= W + 40; x += 28) {
+            const yy = y + Math.sin(x * .012 + state.time * (1.1 + i * .05) + i) * (8 + i);
+            if (x === -40) ctx.moveTo(x, yy);
+            else ctx.lineTo(x, yy);
+          }
+          ctx.strokeStyle = i % 2 ? '#7dfdff' : '#2eb9ff';
+          ctx.lineWidth = i % 2 ? 1.2 : .8;
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.globalAlpha = .12;
+        for (let i = 0; i < 14; i++) {
+          const x = ((i * 197 + state.time * 16) % (W + 260)) - 130;
+          const y = H - 80 - (i % 5) * 32;
+          ctx.fillStyle = i % 2 ? '#071f39' : '#0b2a44';
+          ctx.beginPath();
+          ctx.ellipse(x, y, 80 + (i % 3) * 18, 18 + (i % 4) * 5, 0, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        drawBubbles();
+
+        const vignette = ctx.createRadialGradient(W * .5, H * .5, Math.min(W, H) * .25, W * .5, H * .5, Math.max(W, H) * .78);
+        vignette.addColorStop(0, 'rgba(0,0,0,0)');
+        vignette.addColorStop(1, 'rgba(0,0,0,.48)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      function drawBubbles() {
+        ctx.save();
+        for (const b of bubbles) {
+          ctx.globalAlpha = .12 + Math.min(.28, b.r / 18);
+          ctx.strokeStyle = '#c8fbff';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, b.r, 0, TAU);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawTorpedo(t) {
+        ctx.save();
+        ctx.translate(t.x, t.y);
+        ctx.rotate(t.angle);
+        ctx.fillStyle = t.big ? '#ffe66d' : '#c5f7ff';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, t.r * 2.2, t.r, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = t.big ? '#ff7557' : '#ffdd78';
+        ctx.beginPath();
+        ctx.moveTo(t.r * 2.3, 0);
+        ctx.lineTo(t.r * .9, -t.r * .75);
+        ctx.lineTo(t.r * .9, t.r * .75);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#10253b';
+        ctx.fillRect(-t.r * .7, -t.r * .72, t.r * .42, t.r * 1.44);
+        ctx.fillStyle = 'rgba(255,154,84,.8)';
+        ctx.beginPath();
+        ctx.moveTo(-t.r * 2.5, 0);
+        ctx.lineTo(-t.r * 3.8, -t.r * .7);
+        ctx.lineTo(-t.r * 3.8, t.r * .7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawPlayer() {
+        const blink = player.invuln > 0 && Math.sin(state.time * 48) > 0;
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.rotate(player.aim);
+        ctx.globalAlpha = blink ? .55 : 1;
+
+        if (player.shield > 0) {
+          ctx.save();
+          ctx.rotate(-player.aim);
+          ctx.strokeStyle = `rgba(70, 242, 255, ${.18 + Math.min(.32, player.shield / 240)})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(0, 0, player.r + 13 + Math.sin(state.time * 7) * 2, 0, TAU);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        ctx.fillStyle = '#ffb238';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 18, 10.5, 0, 0, TAU);
+        ctx.fill();
+
+        ctx.fillStyle = '#ff6f3c';
+        ctx.beginPath();
+        ctx.moveTo(-15, 0);
+        ctx.lineTo(-30, -12);
+        ctx.lineTo(-25, 0);
+        ctx.lineTo(-30, 12);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ffd86d';
+        ctx.beginPath();
+        ctx.moveTo(-2, -9);
+        ctx.lineTo(-14, -22);
+        ctx.lineTo(10, -12);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#fff7cf';
+        ctx.beginPath();
+        ctx.arc(9, -4, 3.4, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#03172d';
+        ctx.beginPath();
+        ctx.arc(10, -4, 1.4, 0, TAU);
+        ctx.fill();
+
+        ctx.fillStyle = '#52697d';
+        ctx.fillRect(-6, -18, 27, 6);
+        ctx.fillStyle = '#9eb6c8';
+        ctx.fillRect(13, -20, 13, 10);
+        ctx.fillStyle = '#1b3043';
+        ctx.fillRect(23, -18, 7, 6);
+        ctx.fillStyle = '#314c62';
+        ctx.fillRect(-11, -15, 8, 3);
+
+        ctx.restore();
+      }
+
+      function drawEnemy(e) {
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        if (e.type !== 'jelly') ctx.rotate(e.angle);
+
+        if (e.type === 'piranha') drawPiranha(e);
+        else if (e.type === 'shark') drawShark(e, false);
+        else if (e.type === 'jelly') drawJelly(e);
+        else if (e.type === 'eel') drawEel(e);
+        else if (e.type === 'squid') drawSquid(e);
+        else if (e.type === 'ray') drawRay(e);
+        else if (e.type === 'megalodon') drawShark(e, true);
+
+        ctx.restore();
+
+        if (e.hp < e.maxHp || e.type === 'megalodon') {
+          const width = e.r * 2;
+          ctx.save();
+          ctx.fillStyle = 'rgba(0, 0, 0, .46)';
+          ctx.fillRect(e.x - width / 2, e.y - e.r - 15, width, 5);
+          ctx.fillStyle = e.type === 'megalodon' ? '#ff5f7d' : '#ffe66d';
+          ctx.fillRect(e.x - width / 2, e.y - e.r - 15, width * clamp(e.hp / e.maxHp, 0, 1), 5);
+          ctx.restore();
+        }
+      }
+
+      function drawShark(e, boss) {
+        const s = boss ? 1.35 : 1;
+        ctx.fillStyle = boss ? '#314352' : '#637886';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, e.r * 1.35, e.r * .54, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = boss ? '#c7d7df' : '#d8edf2';
+        ctx.beginPath();
+        ctx.ellipse(12 * s, 5 * s, e.r * .62, e.r * .23, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = boss ? '#26333d' : '#4a5d68';
+        ctx.beginPath();
+        ctx.moveTo(-e.r * .86, 0);
+        ctx.lineTo(-e.r * 1.55, -e.r * .58);
+        ctx.lineTo(-e.r * 1.31, 0);
+        ctx.lineTo(-e.r * 1.55, e.r * .58);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-4 * s, -e.r * .46);
+        ctx.lineTo(-18 * s, -e.r * 1.08);
+        ctx.lineTo(12 * s, -e.r * .44);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#071522';
+        ctx.beginPath();
+        ctx.arc(e.r * .58, -e.r * .18, boss ? 3.5 : 2.4, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,.24)';
+        ctx.lineWidth = boss ? 3 : 2;
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath();
+          ctx.moveTo(e.r * .2 + i * 5 * s, -e.r * .32);
+          ctx.lineTo(e.r * .14 + i * 5 * s, e.r * .08);
+          ctx.stroke();
+        }
+        ctx.fillStyle = 'white';
+        for (let i = 0; i < (boss ? 8 : 5); i++) {
+          ctx.beginPath();
+          ctx.moveTo(e.r * .78 - i * 5 * s, e.r * .19);
+          ctx.lineTo(e.r * .72 - i * 5 * s, e.r * .34);
+          ctx.lineTo(e.r * .64 - i * 5 * s, e.r * .19);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      function drawPiranha(e) {
+        ctx.fillStyle = '#ff5e4f';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, e.r * 1.2, e.r * .82, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#ffbf47';
+        ctx.beginPath();
+        ctx.moveTo(-e.r * .85, 0);
+        ctx.lineTo(-e.r * 1.55, -e.r * .65);
+        ctx.lineTo(-e.r * 1.3, 0);
+        ctx.lineTo(-e.r * 1.55, e.r * .65);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#181822';
+        ctx.beginPath();
+        ctx.arc(e.r * .5, -e.r * .25, 2.2, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath();
+          ctx.moveTo(e.r * .8 - i * 4, e.r * .12);
+          ctx.lineTo(e.r * .72 - i * 4, e.r * .32);
+          ctx.lineTo(e.r * .62 - i * 4, e.r * .12);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      function drawJelly(e) {
+        const pulse = 1 + Math.sin(state.time * 4 + e.phase) * .08;
+        ctx.scale(pulse, pulse);
+        const grad = ctx.createRadialGradient(0, -4, 2, 0, 0, e.r);
+        grad.addColorStop(0, 'rgba(255,255,255,.9)');
+        grad.addColorStop(.45, 'rgba(193,126,255,.8)');
+        grad.addColorStop(1, 'rgba(119,89,255,.32)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, -2, e.r, Math.PI, 0);
+        ctx.quadraticCurveTo(e.r * .58, e.r * .55, 0, e.r * .38);
+        ctx.quadraticCurveTo(-e.r * .58, e.r * .55, -e.r, -2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(217,190,255,.72)';
+        ctx.lineWidth = 2;
+        for (let i = -2; i <= 2; i++) {
+          ctx.beginPath();
+          ctx.moveTo(i * e.r * .24, e.r * .26);
+          for (let y = e.r * .28; y < e.r * 1.55; y += 8) {
+            ctx.lineTo(i * e.r * .24 + Math.sin(y * .13 + state.time * 5 + i) * 7, y);
+          }
+          ctx.stroke();
+        }
+      }
+
+      function drawEel(e) {
+        ctx.strokeStyle = '#e5dd74';
+        ctx.lineWidth = e.r * .58;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let i = 0; i <= 9; i++) {
+          const x = -e.r * 1.6 + i * e.r * .36;
+          const y = Math.sin(i * .9 + state.time * 12 + e.phase) * e.r * .26;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.fillStyle = '#fff8a8';
+        ctx.beginPath();
+        ctx.ellipse(e.r * 1.35, 0, e.r * .6, e.r * .42, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#061827';
+        ctx.beginPath();
+        ctx.arc(e.r * 1.55, -e.r * .12, 2.2, 0, TAU);
+        ctx.fill();
+      }
+
+      function drawSquid(e) {
+        ctx.fillStyle = '#c56dff';
+        ctx.beginPath();
+        ctx.ellipse(0, -2, e.r * .72, e.r, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#8c45d8';
+        ctx.beginPath();
+        ctx.moveTo(-e.r * .45, -e.r * .55);
+        ctx.lineTo(0, -e.r * 1.35);
+        ctx.lineTo(e.r * .45, -e.r * .55);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#d998ff';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        for (let i = -2; i <= 2; i++) {
+          ctx.beginPath();
+          ctx.moveTo(-e.r * .2, e.r * .45);
+          ctx.quadraticCurveTo(i * e.r * .25, e.r * .95, i * e.r * .38, e.r * 1.4 + Math.sin(state.time * 6 + i) * 5);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#071522';
+        ctx.beginPath();
+        ctx.arc(e.r * .22, -e.r * .1, 2.5, 0, TAU);
+        ctx.arc(e.r * .22, e.r * .24, 2.5, 0, TAU);
+        ctx.fill();
+      }
+
+      function drawRay(e) {
+        ctx.fillStyle = '#5cc9d6';
+        ctx.beginPath();
+        ctx.moveTo(e.r * 1.25, 0);
+        ctx.quadraticCurveTo(0, -e.r * 1.1, -e.r * 1.25, 0);
+        ctx.quadraticCurveTo(0, e.r * 1.1, e.r * 1.25, 0);
+        ctx.fill();
+        ctx.strokeStyle = '#5cc9d6';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-e.r * 1.1, 0);
+        ctx.lineTo(-e.r * 2.1, Math.sin(state.time * 4 + e.phase) * 8);
+        ctx.stroke();
+        ctx.fillStyle = '#073044';
+        ctx.beginPath();
+        ctx.arc(e.r * .35, -e.r * .18, 2.5, 0, TAU);
+        ctx.arc(e.r * .35, e.r * .18, 2.5, 0, TAU);
+        ctx.fill();
+      }
+
+      function drawPowerup(p) {
+        const data = powerData[p.type];
+        const bob = Math.sin(p.phase) * 3;
+        ctx.save();
+        ctx.translate(p.x, p.y + bob);
+        ctx.shadowColor = data.color;
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = 'rgba(3,18,35,.86)';
+        ctx.strokeStyle = data.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, p.r, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = data.color;
+        ctx.font = '900 14px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const icons = { rapid: 'R', triple: '3', speed: 'S', big: 'M', shield: 'O', heal: '+', blast: '!' };
+        ctx.fillText(icons[p.type], 0, 1);
+        ctx.restore();
+      }
+
+      function drawEnemyShot(s) {
+        ctx.save();
+        ctx.fillStyle = s.color;
+        ctx.globalAlpha = .72;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.35)';
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        ctx.save();
+        for (const p of particles) {
+          const alpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * (1 + (1 - alpha) * .8), 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const f of floaters) {
+          const alpha = clamp(f.life / f.maxLife, 0, 1);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = f.color;
+          ctx.font = `900 ${f.size || 18}px Inter, system-ui, sans-serif`;
+          ctx.shadowColor = 'rgba(0,0,0,.55)';
+          ctx.shadowBlur = 6;
+          ctx.fillText(f.text, f.x, f.y);
+        }
+        ctx.restore();
+      }
+
+      function render() {
+        drawBackground();
+        ctx.save();
+        if (state.shake > 0) {
+          ctx.translate(rand(-state.shake, state.shake), rand(-state.shake, state.shake));
+        }
+
+        for (const p of powerups) drawPowerup(p);
+        for (const s of enemyShots) drawEnemyShot(s);
+        for (const t of torpedoes) drawTorpedo(t);
+        for (const e of enemies) drawEnemy(e);
+        if (state.running || overlay.classList.contains('show')) drawPlayer();
+        drawParticles();
+
+        ctx.restore();
+      }
+
+      function loop(now) {
+        const dt = Math.min(.04, Math.max(0, (now - last) / 1000 || 0));
+        last = now;
+        if (state.running && !state.paused && !state.over) update(dt);
+        else updateBubbles(dt);
+        render();
+        requestAnimationFrame(loop);
+      }
+
+      function setPointer(event) {
+        const rect = canvas.getBoundingClientRect();
+        pointer.x = event.clientX - rect.left;
+        pointer.y = event.clientY - rect.top;
+        pointer.active = true;
+      }
+
+      window.addEventListener('resize', () => {
+        resize();
+        seedBubbles();
+      });
+
+      window.addEventListener('keydown', (event) => {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
+        keys.add(event.code);
+        if (event.code === 'Enter' && (!state.running || state.over)) startGame();
+        if (event.code === 'KeyP') togglePause();
+      });
+
+      window.addEventListener('keyup', (event) => {
+        keys.delete(event.code);
+      });
+
+      canvas.addEventListener('pointermove', setPointer);
+      canvas.addEventListener('pointerdown', (event) => {
+        setPointer(event);
+        pointer.down = true;
+        if (canvas.setPointerCapture) canvas.setPointerCapture(event.pointerId);
+        if (!state.running || state.over) startGame();
+      });
+      canvas.addEventListener('pointerup', () => {
+        pointer.down = false;
+      });
+      canvas.addEventListener('pointercancel', () => {
+        pointer.down = false;
+      });
+
+      startButton.addEventListener('click', () => {
+        if (state.running && state.paused) togglePause(false);
+        else startGame();
+      });
+
+      resize();
+      seedBubbles();
+      updateHud(true);
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
