@@ -284,7 +284,8 @@
     @media (max-width: 860px) {
       #hud {
         grid-template-columns: 1fr;
-        inset: 10px;
+        inset: 10px 10px auto;
+        gap: 8px;
       }
 
       #help {
@@ -292,7 +293,22 @@
       }
 
       #powers {
+        align-self: start;
+        justify-self: start;
         justify-content: flex-start;
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+
+      .power-pill {
+        min-width: 0;
+        padding: 7px 10px;
+        background: rgba(3, 18, 35, .76);
+        backdrop-filter: blur(10px);
       }
 
       .panel {
