@@ -380,6 +380,66 @@
         powers: document.getElementById('powers')
       };
 
+      // ── Audio ──────────────────────────────────────────
+      let audioCtx = null;
+
+      function getAudioCtx() {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return audioCtx;
+      }
+
+      function playShootSound() {
+        try {
+          const ctx = getAudioCtx();
+          const now = ctx.currentTime;
+
+          // Low percussive thump — gives the torpedo launch weight
+          const thump = ctx.createOscillator();
+          const thumpGain = ctx.createGain();
+          thump.type = 'sine';
+          thump.frequency.setValueAtTime(180, now);
+          thump.frequency.exponentialRampToValueAtTime(60, now + 0.06);
+          thumpGain.gain.setValueAtTime(0.15, now);
+          thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+          thump.connect(thumpGain);
+          thumpGain.connect(ctx.destination);
+          thump.start(now);
+          thump.stop(now + 0.06);
+
+          // Bright laser sweep — the torpedo firing zip
+          const laser = ctx.createOscillator();
+          const laserGain = ctx.createGain();
+          laser.type = 'square';
+          laser.frequency.setValueAtTime(1200, now);
+          laser.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+          laserGain.gain.setValueAtTime(0.08, now);
+          laserGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+          laser.connect(laserGain);
+          laserGain.connect(ctx.destination);
+          laser.start(now);
+          laser.stop(now + 0.1);
+
+          // Short noise burst — adds texture/grittiness
+          const bufSize = Math.floor(ctx.sampleRate * 0.035);
+          const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+          const ch = buf.getChannelData(0);
+          for (let i = 0; i < bufSize; i++) {
+            ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufSize, 4);
+          }
+          const noise = ctx.createBufferSource();
+          noise.buffer = buf;
+          const noiseGain = ctx.createGain();
+          noiseGain.gain.setValueAtTime(0.05, now);
+          noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+          noise.connect(noiseGain);
+          noiseGain.connect(ctx.destination);
+          noise.start(now);
+          noise.stop(now + 0.035);
+        } catch (_) { /* audio unavailable */ }
+      }
+
       const TAU = Math.PI * 2;
       const STORAGE_KEY = 'wave-defender-best';
       const keys = new Set();
@@ -703,6 +763,7 @@
       function fireTorpedo() {
         if (player.fireTimer > 0) return;
         player.fireTimer = fireDelay();
+        playShootSound();
         const spread = player.powers.triple > 0 ? [-0.2, 0, 0.2] : [0];
         for (const offset of spread) {
           const angle = player.aim + offset;
