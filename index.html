@@ -1436,369 +1436,620 @@
 
       // ── Seafloor ─────────────────────────────────────
       function drawSeafloor() {
-        const floorY = H - 42;
+        const floorY = H - 48;
         const t = state.time;
 
         // ══════════════════════════════════════════════════
-        // Sandy terrain — multi-layer wavy ground
+        // Sandy terrain with caustic shimmer
         // ══════════════════════════════════════════════════
         ctx.save();
-        // Layer 1 — deep background sand
+        // Deep sand base
         ctx.beginPath();
         ctx.moveTo(0, H);
-        for (let x = 0; x <= W; x += 6) {
-          const yy = floorY + 7 + Math.sin(x * 0.01 + t * 0.25) * 12 + Math.sin(x * 0.025 + t * 0.15) * 6;
+        for (let x = 0; x <= W; x += 8) {
+          const yy = floorY + 14 + Math.sin(x * 0.008 + t * 0.18) * 14 + Math.sin(x * 0.022 + t * 0.11) * 7 + Math.cos(x * 0.035) * 3;
           ctx.lineTo(x, yy);
         }
         ctx.lineTo(W, H); ctx.closePath();
-        ctx.fillStyle = 'rgba(55, 42, 30, .32)';
+        ctx.fillStyle = 'rgba(40, 32, 22, .55)';
         ctx.fill();
 
-        // Layer 2 — mid sand
+        // Mid sand with sediment color
         ctx.beginPath();
         ctx.moveTo(0, H);
-        for (let x = 0; x <= W; x += 6) {
-          const yy = floorY + 2 + Math.sin(x * 0.013 + t * 0.3) * 10 + Math.cos(x * 0.03 + t * 0.12) * 5;
+        for (let x = 0; x <= W; x += 8) {
+          const yy = floorY + 5 + Math.sin(x * 0.012 + t * 0.22) * 11 + Math.cos(x * 0.028 + t * 0.14) * 5 + Math.sin(x * 0.045 + t * 0.08) * 3;
           ctx.lineTo(x, yy);
         }
         ctx.lineTo(W, H); ctx.closePath();
-        const sandMid = ctx.createLinearGradient(0, floorY - 10, 0, H);
-        sandMid.addColorStop(0, 'rgba(95, 75, 50, .38)');
-        sandMid.addColorStop(.6, 'rgba(65, 48, 32, .28)');
-        sandMid.addColorStop(1, 'rgba(25, 20, 15, .12)');
+        const sandMid = ctx.createLinearGradient(0, floorY - 12, 0, H);
+        sandMid.addColorStop(0, 'rgba(115, 88, 60, .52)');
+        sandMid.addColorStop(.5, 'rgba(82, 62, 42, .42)');
+        sandMid.addColorStop(.85, 'rgba(50, 38, 26, .32)');
+        sandMid.addColorStop(1, 'rgba(28, 20, 14, .18)');
         ctx.fillStyle = sandMid;
         ctx.fill();
 
-        // Layer 3 — top sand highlight
+        // Top sand highlight ridge
         ctx.beginPath();
         ctx.moveTo(0, H);
-        for (let x = 0; x <= W; x += 6) {
-          const yy = floorY - 3 + Math.sin(x * 0.018 + t * 0.35) * 8 + Math.sin(x * 0.05 + t * 0.08) * 4;
+        for (let x = 0; x <= W; x += 8) {
+          const yy = floorY - 4 + Math.sin(x * 0.016 + t * 0.28) * 9 + Math.sin(x * 0.042 + t * 0.09) * 4 + Math.cos(x * 0.055) * 2;
           ctx.lineTo(x, yy);
         }
         ctx.lineTo(W, H); ctx.closePath();
-        const sandTop = ctx.createLinearGradient(0, floorY - 15, 0, H);
-        sandTop.addColorStop(0, 'rgba(125, 100, 70, .32)');
-        sandTop.addColorStop(.5, 'rgba(90, 72, 50, .22)');
-        sandTop.addColorStop(1, 'rgba(35, 25, 15, .08)');
+        const sandTop = ctx.createLinearGradient(0, floorY - 18, 0, H);
+        sandTop.addColorStop(0, 'rgba(155, 125, 88, .45)');
+        sandTop.addColorStop(.4, 'rgba(110, 88, 58, .35)');
+        sandTop.addColorStop(.8, 'rgba(55, 42, 28, .22)');
+        sandTop.addColorStop(1, 'rgba(25, 18, 12, .10)');
         ctx.fillStyle = sandTop;
         ctx.fill();
 
-        // Sand rim glow
-        ctx.strokeStyle = 'rgba(130, 105, 75, .14)';
-        ctx.lineWidth = 2.5;
+        // Caustic light ripples on sand
+        ctx.save();
+        ctx.globalAlpha = .12;
+        ctx.strokeStyle = '#c8e0ff';
+        ctx.lineWidth = 1.2;
+        for (let c = 0; c < 7; c++) {
+          ctx.beginPath();
+          const cyOff = floorY + 6 + c * 5;
+          for (let x = 0; x <= W; x += 20) {
+            const yy = cyOff + Math.sin(x * 0.03 + t * 0.5 + c * 1.2) * 4 + Math.sin(x * 0.08 + t * 0.7 + c) * 2;
+            if (x === 0) ctx.moveTo(x, yy);
+            else ctx.lineTo(x, yy);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Sand rim accent line
+        ctx.strokeStyle = 'rgba(175, 145, 105, .22)';
+        ctx.lineWidth = 2;
         ctx.stroke();
         ctx.restore();
 
-        // Sand grain / pebble dots
+        // Pebbles and shells on sand
         ctx.save();
-        ctx.globalAlpha = .22;
-        for (let g = 0; g < 50; g++) {
-          const gx = ((g * 173 + 40) % W);
-          const gy = floorY - 1 + ((g * 83 + 20) % 28) + Math.sin(gx * 0.02 + t * 0.2) * 3;
-          const gr = 1 + (g % 3);
-          ctx.fillStyle = g % 2 ? '#b8935e' : '#7a5e3a';
+        ctx.globalAlpha = .38;
+        for (let g = 0; g < 70; g++) {
+          const gx = ((g * 211 + 17) % (W + 40)) - 20;
+          const gy = floorY + 1 + ((g * 97 + 31) % 32) + Math.sin(gx * 0.015 + t * 0.15) * 2;
+          const gr = 1.2 + (g % 4) * 0.6;
+          // Shells (every 8th item)
+          if (g % 8 === 0) {
+            ctx.fillStyle = g % 2 ? '#e8d5c0' : '#d4c4a8';
+            ctx.beginPath();
+            ctx.ellipse(gx, gy, gr * 1.4, gr * 0.9, Math.sin(g * 2.3) * 0.6, 0, TAU);
+            ctx.fill();
+            // Shell ridges
+            ctx.strokeStyle = 'rgba(120, 100, 80, .3)';
+            ctx.lineWidth = 0.6;
+            ctx.beginPath();
+            ctx.moveTo(gx - gr * 0.8, gy);
+            ctx.quadraticCurveTo(gx, gy - gr * 0.3, gx + gr * 0.8, gy);
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = g % 3 === 0 ? '#a89070' : (g % 3 === 1 ? '#7a6548' : '#5c4a34');
+            ctx.beginPath();
+            ctx.arc(gx, gy, gr, 0, TAU);
+            ctx.fill();
+            // Pebble highlight
+            ctx.fillStyle = 'rgba(255,255,255,.15)';
+            ctx.beginPath();
+            ctx.arc(gx - gr * 0.25, gy - gr * 0.25, gr * 0.35, 0, TAU);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+
+        // Small starfish
+        ctx.save();
+        ctx.globalAlpha = .45;
+        const starfish = [
+          { x: 0.14, r: 7, color: '#ff8855' },
+          { x: 0.41, r: 5, color: '#ffaa66' },
+          { x: 0.67, r: 6, color: '#ff7744' },
+          { x: 0.89, r: 4.5, color: '#ff9955' }
+        ];
+        for (const sf of starfish) {
+          const sx = sf.x * W + Math.sin(sf.x * 11 + t * 0.1) * 1.5;
+          const sy = floorY + 6 + Math.sin(sf.x * 17 + t * 0.12) * 2;
+          const rot = sf.x * 5 + t * 0.03;
+          ctx.fillStyle = sf.color;
           ctx.beginPath();
-          ctx.arc(gx, gy, gr, 0, TAU);
+          for (let arm = 0; arm < 5; arm++) {
+            const a = rot + (arm / 5) * TAU;
+            const aNext = rot + ((arm + 0.5) / 5) * TAU;
+            const tipX = sx + Math.cos(a) * sf.r;
+            const tipY = sy + Math.sin(a) * sf.r;
+            const midX = sx + Math.cos(aNext) * sf.r * 0.35;
+            const midY = sy + Math.sin(aNext) * sf.r * 0.35;
+            if (arm === 0) ctx.moveTo(tipX, tipY);
+            else ctx.lineTo(tipX, tipY);
+            ctx.quadraticCurveTo(midX, midY, sx + Math.cos(rot + ((arm + 1) / 5) * TAU) * sf.r, sy + Math.sin(rot + ((arm + 1) / 5) * TAU) * sf.r);
+          }
+          ctx.closePath();
           ctx.fill();
+          // Texture dots
+          ctx.fillStyle = 'rgba(255,255,255,.25)';
+          for (let d = 0; d < 5; d++) {
+            const da = rot + (d / 5) * TAU + 0.3;
+            ctx.beginPath();
+            ctx.arc(sx + Math.cos(da) * sf.r * 0.55, sy + Math.sin(da) * sf.r * 0.55, 0.8, 0, TAU);
+            ctx.fill();
+          }
         }
         ctx.restore();
 
         // ══════════════════════════════════════════════════
-        // Large bedrock / rock formations
+        // Bedrock / rock formations — irregular, detailed
         // ══════════════════════════════════════════════════
         ctx.save();
         const bigRocks = [
-          { x: 0.12, w: 42, h: 22 },
-          { x: 0.38, w: 55, h: 28 },
-          { x: 0.62, w: 38, h: 20 },
-          { x: 0.84, w: 48, h: 25 },
-          { x: 0.25, w: 32, h: 18 },
-          { x: 0.73, w: 35, h: 15 },
-          { x: 0.06, w: 28, h: 14 }
+          { x: 0.12, pts: [-32,8, -18,-12, 8,-16, 28,-4, 38,6, 22,14, -8,12, -28,10] },
+          { x: 0.38, pts: [-48,10, -28,-16, -4,-22, 18,-18, 38,-8, 52,4, 34,14, 10,16, -18,14, -36,12] },
+          { x: 0.62, pts: [-30,6, -16,-10, 6,-14, 24,-6, 32,4, 18,10, -4,10, -22,8] },
+          { x: 0.84, pts: [-40,8, -24,-14, 0,-18, 20,-12, 36,-2, 44,6, 28,12, 6,14, -16,12, -32,10] },
+          { x: 0.25, pts: [-22,6, -10,-8, 8,-10, 18,-4, 24,4, 12,8, -6,8, -18,6] },
+          { x: 0.73, pts: [-28,6, -14,-10, 6,-12, 22,-6, 30,4, 16,8, -4,8, -20,6] },
+          { x: 0.06, pts: [-18,4, -8,-6, 6,-8, 16,-2, 20,4, 10,6, -4,6, -14,4] }
         ];
         for (const r of bigRocks) {
-          const rx = r.x * W + Math.sin(r.x * 13 + t * 0.15) * 2;
-          const ry = floorY - 2 + Math.sin(r.x * 18 + t * 0.2) * 5;
-          // Shadow
-          ctx.fillStyle = 'rgba(15, 18, 16, .35)';
+          const rx = r.x * W + Math.sin(r.x * 13 + t * 0.12) * 2;
+          const ry = floorY + 4 + Math.sin(r.x * 18 + t * 0.18) * 4;
+          // Drop shadow
+          ctx.fillStyle = 'rgba(8, 12, 10, .45)';
           ctx.beginPath();
-          ctx.ellipse(rx + 3, ry + 3, r.w, r.h, 0, 0, TAU);
+          for (let i = 0; i < r.pts.length; i += 2) {
+            const px = rx + r.pts[i] + 4;
+            const py = ry + r.pts[i + 1] + 4;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
           ctx.fill();
-          // Main rock
-          const rockGrad = ctx.createRadialGradient(rx - r.w*.2, ry - r.h*.3, r.w*.1, rx, ry, r.w);
-          rockGrad.addColorStop(0, '#5a6d5e');
-          rockGrad.addColorStop(.6, '#36483a');
-          rockGrad.addColorStop(1, '#1e2b21');
+          // Main rock body
+          const rockGrad = ctx.createLinearGradient(rx - 40, ry - 20, rx + 40, ry + 10);
+          rockGrad.addColorStop(0, '#4a5c52');
+          rockGrad.addColorStop(.4, '#2e3d34');
+          rockGrad.addColorStop(.8, '#1a261f');
+          rockGrad.addColorStop(1, '#0f1812');
           ctx.fillStyle = rockGrad;
           ctx.beginPath();
-          ctx.ellipse(rx, ry, r.w, r.h, 0, 0, TAU);
+          for (let i = 0; i < r.pts.length; i += 2) {
+            const px = rx + r.pts[i];
+            const py = ry + r.pts[i + 1];
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
           ctx.fill();
-          // Moss / algae on top
-          ctx.fillStyle = 'rgba(40, 90, 50, .3)';
+          // Highlight facet
+          ctx.fillStyle = 'rgba(100, 120, 108, .18)';
           ctx.beginPath();
-          ctx.ellipse(rx, ry - r.h * 0.4, r.w * 0.7, r.h * 0.3, 0, Math.PI, 0);
+          for (let i = 0; i < r.pts.length; i += 2) {
+            const px = rx + r.pts[i] * 0.65;
+            const py = ry + r.pts[i + 1] * 0.55 - 2;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
           ctx.fill();
+          // Moss patches on rock
+          ctx.fillStyle = 'rgba(35, 85, 45, .35)';
+          ctx.beginPath();
+          ctx.ellipse(rx + Math.sin(r.x * 7) * 12, ry - 6 + Math.cos(r.x * 5) * 3, 14, 5, Math.sin(r.x * 3) * 0.4, 0, TAU);
+          ctx.fill();
+          // Barnacles
+          ctx.fillStyle = 'rgba(200, 210, 220, .35)';
+          for (let b = 0; b < 4; b++) {
+            const bx = rx + Math.sin(r.x * 13 + b * 2.7) * 22;
+            const by = ry + Math.cos(r.x * 9 + b * 1.9) * 6 - 4;
+            ctx.beginPath();
+            ctx.arc(bx, by, 1.5 + (b % 2) * 0.8, 0, TAU);
+            ctx.fill();
+          }
+          // Rock crack
+          ctx.strokeStyle = 'rgba(5, 8, 6, .4)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(rx - 8, ry - 2);
+          ctx.lineTo(rx + 4, ry + 2);
+          ctx.lineTo(rx + 10, ry - 1);
+          ctx.stroke();
         }
         ctx.restore();
 
         // ══════════════════════════════════════════════════
-        // Kelp forest — wide ribbon-like seaweed
+        // Kelp forest — smooth flowing translucent ribbons
         // ══════════════════════════════════════════════════
         ctx.save();
-        const kelpPalette = ['#14522d', '#1a6b38', '#238545', '#1c7a3a'];
-        for (let k = 0; k < 15; k++) {
-          const kx = ((k * 121 + 35) % (W + 60)) - 30;
-          const ky = floorY + Math.sin(kx * 0.008 + t * 0.25) * 5;
-          const h = 55 + ((k * 23) % 38);
-          const w = 2.5 + (k % 3) * 1.5;
+        const kelpPalette = ['#166633', '#1e7a40', '#28904d', '#1f8545'];
+        for (let k = 0; k < 18; k++) {
+          const kx = ((k * 137 + 41) % (W + 80)) - 40;
+          const ky = floorY + 2 + Math.sin(kx * 0.006 + t * 0.2) * 3;
+          const h = 70 + ((k * 29) % 48);
+          const w = 3 + (k % 4) * 1.2;
           const color = kelpPalette[k % kelpPalette.length];
 
-          ctx.fillStyle = color;
-          ctx.globalAlpha = .4;
-
-          // Draw kelp as filled ribbon
-          for (let seg = 0; seg < 12; seg++) {
-            const st = seg / 12;
-            const stNext = (seg + 1) / 12;
-            const phase = k * 1.7 + st * 4;
-            const sway1 = Math.sin(t * 0.6 + phase) * (5 + st * 14) + Math.sin(t * 1.2 + phase * 1.7) * (3 + st * 6);
-            const sway2 = Math.sin(t * 0.6 + phase + 0.5) * (5 + stNext * 14) + Math.sin(t * 1.2 + phase * 1.7 + 0.5) * (3 + stNext * 6);
-
-            const y1 = ky - h * st;
-            const y2 = ky - h * stNext;
-            const wEff = w * (1 - st * 0.6);
-
-            ctx.beginPath();
-            ctx.moveTo(kx + sway1 - wEff, y1);
-            ctx.lineTo(kx + sway1 + wEff, y1);
-            ctx.lineTo(kx + sway2 + wEff * 0.85, y2);
-            ctx.lineTo(kx + sway2 - wEff * 0.85, y2);
-            ctx.closePath();
-            ctx.fill();
-
-            // Central vein highlight
-            ctx.strokeStyle = 'rgba(100, 255, 140, .1)';
-            ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(kx + sway1, y1);
-            ctx.lineTo(kx + sway2, y2);
-            ctx.stroke();
+          // Build smooth ribbon path
+          const pts = [];
+          const segs = 24;
+          for (let s = 0; s <= segs; s++) {
+            const st = s / segs;
+            const phase = k * 2.1 + st * 5;
+            const sway = Math.sin(t * 0.5 + phase) * (4 + st * 18) + Math.sin(t * 1.0 + phase * 1.5) * (2 + st * 7) + Math.sin(t * 0.25 + st * 8) * 3;
+            pts.push({ x: kx + sway, y: ky - h * st, w: w * (1 - st * 0.5) });
           }
+
+          // Draw as filled ribbon
+          ctx.fillStyle = color;
+          ctx.globalAlpha = .55;
+          ctx.beginPath();
+          for (let s = 0; s < pts.length; s++) {
+            if (s === 0) ctx.moveTo(pts[s].x - pts[s].w, pts[s].y);
+            else ctx.lineTo(pts[s].x - pts[s].w, pts[s].y);
+          }
+          for (let s = pts.length - 1; s >= 0; s--) {
+            ctx.lineTo(pts[s].x + pts[s].w, pts[s].y);
+          }
+          ctx.closePath();
+          ctx.fill();
+
+          // Frond highlight edge
+          ctx.strokeStyle = 'rgba(120, 255, 160, .18)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          for (let s = 0; s < pts.length; s++) {
+            if (s === 0) ctx.moveTo(pts[s].x - pts[s].w, pts[s].y);
+            else ctx.lineTo(pts[s].x - pts[s].w, pts[s].y);
+          }
+          ctx.stroke();
         }
         ctx.restore();
 
         // ══════════════════════════════════════════════════
-        // Branching Coral — finger-like with glow tips
+        // Branching Staghorn Coral — organic, detailed
         // ══════════════════════════════════════════════════
         ctx.save();
         const branchCorals = [
-          { x: 0.09, h: 45, color: '#ff7744' },
-          { x: 0.28, h: 38, color: '#ff5599' },
-          { x: 0.52, h: 52, color: '#ff8844' },
-          { x: 0.71, h: 42, color: '#ff6699' },
-          { x: 0.88, h: 48, color: '#ff7744' },
-          { x: 0.95, h: 35, color: '#ff5599' },
+          { x: 0.09, h: 55, color: '#ff6633', thick: 5.5 },
+          { x: 0.28, h: 46, color: '#ff4488', thick: 4.5 },
+          { x: 0.52, h: 62, color: '#ff7733', thick: 6 },
+          { x: 0.71, h: 50, color: '#ff5588', thick: 4.8 },
+          { x: 0.88, h: 58, color: '#ff6633', thick: 5.2 },
+          { x: 0.95, h: 42, color: '#ff4488', thick: 4 },
         ];
         for (const c of branchCorals) {
           const cx = c.x * W;
-          const cy = floorY + Math.sin(c.x * 15 + t * 0.25) * 6;
-          drawBranchCoral(cx, cy, c.h, c.color, t, c.x);
+          const cy = floorY + 1 + Math.sin(c.x * 15 + t * 0.2) * 5;
+          drawBranchCoral(cx, cy, c.h, c.color, t, c.x, c.thick);
         }
         ctx.restore();
 
         // ══════════════════════════════════════════════════
-        // Brain Coral — dome shapes
+        // Brain Coral — textured domes with ridge shading
         // ══════════════════════════════════════════════════
         ctx.save();
         const brainCorals = [
-          { x: 0.19, r: 16, color: '#c86ef0' },
-          { x: 0.44, r: 20, color: '#8e66ff' },
-          { x: 0.66, r: 14, color: '#d08cf0' },
+          { x: 0.19, r: 18, color: '#c058e8', ridges: '#8a3db8' },
+          { x: 0.44, r: 22, color: '#7a55ff', ridges: '#5233cc' },
+          { x: 0.66, r: 15, color: '#d070f0', ridges: '#a050c0' },
         ];
         for (const bc of brainCorals) {
           const bx = bc.x * W;
-          const by = floorY - 5 + Math.sin(bc.x * 12 + t * 0.3) * 4;
+          const by = floorY - 4 + Math.sin(bc.x * 12 + t * 0.25) * 3;
           // Shadow
-          ctx.fillStyle = 'rgba(20, 10, 30, .3)';
+          ctx.fillStyle = 'rgba(15, 8, 25, .5)';
           ctx.beginPath();
-          ctx.ellipse(bx + 2, by + 2, bc.r, bc.r * 0.65, 0, Math.PI, 0);
+          ctx.ellipse(bx + 3, by + 3, bc.r, bc.r * 0.68, 0, Math.PI, 0);
           ctx.fill();
-          // Main dome
-          const brainGrad = ctx.createRadialGradient(bx - bc.r*.2, by - bc.r*.4, bc.r*.05, bx, by, bc.r);
+          // Base dome
+          const brainGrad = ctx.createRadialGradient(bx - bc.r * .15, by - bc.r * .35, bc.r * .08, bx, by, bc.r);
           brainGrad.addColorStop(0, bc.color);
-          brainGrad.addColorStop(.7, 'rgba(80, 30, 120, .6)');
-          brainGrad.addColorStop(1, 'rgba(40, 15, 60, .3)');
+          brainGrad.addColorStop(.5, bc.ridges);
+          brainGrad.addColorStop(.85, 'rgba(60, 25, 90, .7)');
+          brainGrad.addColorStop(1, 'rgba(30, 12, 50, .35)');
           ctx.fillStyle = brainGrad;
           ctx.beginPath();
-          ctx.ellipse(bx, by, bc.r, bc.r * 0.65, 0, Math.PI, 0);
+          ctx.ellipse(bx, by, bc.r, bc.r * 0.68, 0, Math.PI, 0);
           ctx.fill();
-          // Groove lines
-          ctx.strokeStyle = 'rgba(255,255,255,.12)';
-          ctx.lineWidth = 1;
-          for (let g = -bc.r + 6; g < bc.r; g += 8) {
-            const gy = by - Math.sqrt(Math.max(0, 1 - (g / bc.r) ** 2)) * bc.r * 0.65;
+          // Ridge grooves (wavy brain pattern)
+          ctx.strokeStyle = 'rgba(40, 15, 65, .55)';
+          ctx.lineWidth = 2.2;
+          ctx.lineCap = 'round';
+          for (let ring = 0; ring < 4; ring++) {
+            const rr = bc.r * (0.25 + ring * 0.22);
             ctx.beginPath();
-            ctx.moveTo(bx + g, by);
-            ctx.quadraticCurveTo(bx + g, gy - 2, bx + g - 3, gy - 6);
+            for (let a = 0; a <= Math.PI; a += 0.15) {
+              const wave = Math.sin(a * 6 + bc.x * 10 + ring * 2) * 2.5;
+              const px = bx + Math.cos(a) * (rr + wave);
+              const py = by - Math.sin(a) * (rr * 0.68 + wave * 0.5);
+              if (a === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
             ctx.stroke();
           }
-        }
-        ctx.restore();
-
-        // ══════════════════════════════════════════════════
-        // Tube/Sea Fan Coral
-        // ══════════════════════════════════════════════════
-        ctx.save();
-        const fanCorals = [
-          { x: 0.35, h: 35, color: '#4de8c4' },
-          { x: 0.57, h: 30, color: '#3cb8d4' },
-          { x: 0.82, h: 40, color: '#5ef0d0' },
-        ];
-        for (const fc of fanCorals) {
-          const fx = fc.x * W;
-          const fy = floorY + Math.sin(fc.x * 10 + t * 0.35) * 6;
-          const swayF = Math.sin(t * 0.4 + fc.x * 8) * 4;
-          // Fan shape
-          ctx.fillStyle = fc.color;
-          ctx.globalAlpha = .4;
-          ctx.beginPath();
-          ctx.moveTo(fx, fy);
-          ctx.bezierCurveTo(fx + swayF - fc.h*.4, fy - fc.h*.3, fx + swayF - fc.h*.6, fy - fc.h*.9, fx + swayF - 5, fy - fc.h);
-          ctx.bezierCurveTo(fx + swayF, fy - fc.h*.95, fx + swayF, fy - fc.h*.95, fx + swayF + 5, fy - fc.h);
-          ctx.bezierCurveTo(fx + swayF + fc.h*.6, fy - fc.h*.9, fx + swayF + fc.h*.4, fy - fc.h*.3, fx + swayF, fy);
-          ctx.closePath();
-          ctx.fill();
-          // Skeleton lines
-          ctx.strokeStyle = 'rgba(255,255,255,.18)';
-          ctx.lineWidth = 1;
-          for (let l = -3; l <= 3; l++) {
+          // Small polyp bumps
+          ctx.fillStyle = 'rgba(255, 200, 255, .35)';
+          for (let p = 0; p < 8; p++) {
+            const pa = (p / 8) * Math.PI + 0.3;
+            const pr = bc.r * (0.4 + (p % 3) * 0.18);
             ctx.beginPath();
-            ctx.moveTo(fx, fy);
-            ctx.quadraticCurveTo(fx + swayF + l * 7, fy - fc.h*.5, fx + swayF + l * 8, fy - fc.h);
-            ctx.stroke();
-          }
-        }
-        ctx.restore();
-
-        // ══════════════════════════════════════════════════
-        // Sea Anemones
-        // ══════════════════════════════════════════════════
-        ctx.save();
-        const anemones = [
-          { x: 0.17, r: 10, color: '#ff7baa' },
-          { x: 0.48, r: 8, color: '#ff8c55' },
-          { x: 0.76, r: 11, color: '#ff6e9f' },
-        ];
-        for (const a of anemones) {
-          const ax = a.x * W;
-          const ay = floorY - 2 + Math.sin(a.x * 8 + t * 0.3) * 3;
-          // Base
-          ctx.fillStyle = 'rgba(40, 25, 35, .45)';
-          ctx.beginPath();
-          ctx.ellipse(ax, ay, a.r * 0.85, a.r * 0.4, 0, 0, TAU);
-          ctx.fill();
-          // Tentacles
-          for (let tn = 0; tn < 14; tn++) {
-            const ta = (tn / 14) * TAU + t * 0.2;
-            const tr = a.r * 0.85;
-            const sway = Math.sin(t * 1.5 + tn * 0.8) * 4;
-            ctx.strokeStyle = a.color;
-            ctx.globalAlpha = .5;
-            ctx.lineWidth = 1.8;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(ax + Math.cos(ta) * tr * 0.3, ay);
-            ctx.quadraticCurveTo(ax + Math.cos(ta) * tr * 0.7 + sway, ay - 5,
-                                 ax + Math.cos(ta) * tr * 1.0 + sway, ay - 8);
-            ctx.stroke();
-            // Tip dot
-            ctx.fillStyle = 'rgba(255, 255, 240, .6)';
-            ctx.beginPath();
-            ctx.arc(ax + Math.cos(ta) * tr * 1.0 + sway, ay - 8, 1.5, 0, TAU);
+            ctx.arc(bx + Math.cos(pa) * pr, by - Math.sin(pa) * pr * 0.68, 1.2, 0, TAU);
             ctx.fill();
           }
         }
         ctx.restore();
 
         // ══════════════════════════════════════════════════
-        // Floating particles / marine snow
+        // Sea Fan Coral — lattice cross-hatch detail
         // ══════════════════════════════════════════════════
         ctx.save();
-        ctx.globalAlpha = .15;
-        for (let p = 0; p < 25; p++) {
-          const px = ((p * 191 + 70) % W);
-          const py = floorY - 5 - ((p * 87 + 15) % 35) + Math.sin(t * 0.4 + p * 0.7) * 4;
-          ctx.fillStyle = p % 3 ? '#d4e8d0' : '#ffe8cc';
+        const fanCorals = [
+          { x: 0.32, h: 42, color: '#3dd4b0' },
+          { x: 0.56, h: 36, color: '#33b8cc' },
+          { x: 0.80, h: 46, color: '#44e8c8' },
+        ];
+        for (const fc of fanCorals) {
+          const fx = fc.x * W;
+          const fy = floorY + 2 + Math.sin(fc.x * 10 + t * 0.3) * 4;
+          const swayF = Math.sin(t * 0.35 + fc.x * 7) * 5;
+          // Main fan shape
+          ctx.fillStyle = fc.color;
+          ctx.globalAlpha = .48;
           ctx.beginPath();
-          ctx.arc(px, py, 0.8 + (p % 2) * 0.5, 0, TAU);
+          ctx.moveTo(fx, fy);
+          ctx.bezierCurveTo(fx + swayF - fc.h * .35, fy - fc.h * .25, fx + swayF - fc.h * .55, fy - fc.h * .82, fx + swayF - 6, fy - fc.h);
+          ctx.bezierCurveTo(fx + swayF, fy - fc.h * .92, fx + swayF, fy - fc.h * .92, fx + swayF + 6, fy - fc.h);
+          ctx.bezierCurveTo(fx + swayF + fc.h * .55, fy - fc.h * .82, fx + swayF + fc.h * .35, fy - fc.h * .25, fx + swayF, fy);
+          ctx.closePath();
+          ctx.fill();
+          // Lattice cross-hatch
+          ctx.strokeStyle = 'rgba(20, 50, 45, .35)';
+          ctx.lineWidth = 0.9;
+          for (let l = -4; l <= 4; l++) {
+            const spread = 1 - Math.abs(l) / 5;
+            ctx.beginPath();
+            ctx.moveTo(fx, fy);
+            ctx.quadraticCurveTo(fx + swayF + l * 7, fy - fc.h * .45, fx + swayF + l * 9 * spread, fy - fc.h * (.8 + Math.abs(l) * 0.02));
+            ctx.stroke();
+          }
+          for (let row = 0; row < 5; row++) {
+            const ry = fy - fc.h * (0.2 + row * 0.18);
+            const rw = fc.h * (0.15 + row * 0.12);
+            ctx.beginPath();
+            ctx.moveTo(fx + swayF - rw, ry);
+            ctx.quadraticCurveTo(fx + swayF, ry + 2, fx + swayF + rw, ry);
+            ctx.stroke();
+          }
+          // Edge glow
+          ctx.strokeStyle = 'rgba(120, 255, 220, .25)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(fx, fy);
+          ctx.bezierCurveTo(fx + swayF - fc.h * .35, fy - fc.h * .25, fx + swayF - fc.h * .55, fy - fc.h * .82, fx + swayF - 6, fy - fc.h);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // ══════════════════════════════════════════════════
+        // Table Coral — flat plate-like structures
+        // ══════════════════════════════════════════════════
+        ctx.save();
+        const tableCorals = [
+          { x: 0.22, r: 26, color: '#ff9944', stalk: '#cc6622' },
+          { x: 0.55, r: 20, color: '#ffbb55', stalk: '#cc8822' },
+          { x: 0.78, r: 18, color: '#ff8844', stalk: '#bb5522' }
+        ];
+        for (const tc of tableCorals) {
+          const tx = tc.x * W;
+          const ty = floorY + 3 + Math.sin(tc.x * 14 + t * 0.15) * 3;
+          const h = 18 + ((tc.x * 100) % 10);
+          const sSway = Math.sin(t * 0.4 + tc.x * 8) * 2;
+          // Stalk
+          ctx.strokeStyle = tc.stalk;
+          ctx.lineWidth = 5;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(tx, ty);
+          ctx.quadraticCurveTo(tx + sSway * 0.5, ty - h * 0.5, tx + sSway, ty - h);
+          ctx.stroke();
+          // Table top (irregular ellipse)
+          ctx.fillStyle = tc.color;
+          ctx.globalAlpha = .55;
+          ctx.beginPath();
+          const topY = ty - h;
+          ctx.ellipse(tx + sSway, topY, tc.r, tc.r * 0.35, sSway * 0.02, 0, TAU);
+          ctx.fill();
+          // Rim highlight
+          ctx.strokeStyle = 'rgba(255, 220, 160, .3)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(tx + sSway, topY, tc.r, tc.r * 0.35, sSway * 0.02, Math.PI * 0.1, Math.PI * 0.9);
+          ctx.stroke();
+          // Underside shadow
+          ctx.fillStyle = 'rgba(60, 30, 15, .25)';
+          ctx.beginPath();
+          ctx.ellipse(tx + sSway, topY + 2, tc.r * 0.85, tc.r * 0.25, sSway * 0.02, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // ══════════════════════════════════════════════════
+        // Sea Anemones — enhanced swaying tentacles
+        // ══════════════════════════════════════════════════
+        ctx.save();
+        const anemones = [
+          { x: 0.15, r: 11, color: '#ff6699', tentacles: 16 },
+          { x: 0.38, r: 9, color: '#ff8855', tentacles: 14 },
+          { x: 0.61, r: 12, color: '#ff5599', tentacles: 18 },
+          { x: 0.84, r: 8, color: '#ff7744', tentacles: 12 }
+        ];
+        for (const a of anemones) {
+          const ax = a.x * W;
+          const ay = floorY - 1 + Math.sin(a.x * 8 + t * 0.25) * 2;
+          // Base body
+          const baseGrad = ctx.createRadialGradient(ax, ay - a.r * 0.3, 1, ax, ay, a.r);
+          baseGrad.addColorStop(0, 'rgba(60, 35, 45, .6)');
+          baseGrad.addColorStop(1, 'rgba(30, 18, 24, .45)');
+          ctx.fillStyle = baseGrad;
+          ctx.beginPath();
+          ctx.ellipse(ax, ay, a.r * 0.9, a.r * 0.45, 0, 0, TAU);
+          ctx.fill();
+          // Oral disc center
+          ctx.fillStyle = 'rgba(255, 200, 220, .2)';
+          ctx.beginPath();
+          ctx.ellipse(ax, ay - 2, a.r * 0.5, a.r * 0.25, 0, 0, TAU);
+          ctx.fill();
+          // Tentacles with multi-segment sway
+          for (let tn = 0; tn < a.tentacles; tn++) {
+            const ta = (tn / a.tentacles) * TAU + t * 0.08;
+            const tr = a.r * 0.85;
+            const len = 10 + (tn % 3) * 4;
+            const sway1 = Math.sin(t * 1.8 + tn * 0.7 + a.x * 10) * 3;
+            const sway2 = Math.sin(t * 2.2 + tn * 0.9 + a.x * 10) * 5;
+            ctx.strokeStyle = a.color;
+            ctx.globalAlpha = .6;
+            ctx.lineWidth = 1.6;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            const baseX = ax + Math.cos(ta) * tr * 0.25;
+            const baseY = ay - 2;
+            ctx.moveTo(baseX, baseY);
+            ctx.quadraticCurveTo(
+              baseX + Math.cos(ta) * tr * 0.55 + sway1,
+              baseY - len * 0.5,
+              baseX + Math.cos(ta) * tr * 0.85 + sway2,
+              baseY - len
+            );
+            ctx.stroke();
+            // Tip glow
+            ctx.fillStyle = 'rgba(255, 240, 230, .7)';
+            ctx.globalAlpha = .7;
+            ctx.beginPath();
+            ctx.arc(baseX + Math.cos(ta) * tr * 0.85 + sway2, baseY - len, 1.3, 0, TAU);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+
+        // ══════════════════════════════════════════════════
+        // Marine snow / suspended particles
+        // ══════════════════════════════════════════════════
+        ctx.save();
+        ctx.globalAlpha = .18;
+        for (let p = 0; p < 35; p++) {
+          const px = ((p * 197 + t * 8 + 70) % (W + 60)) - 30;
+          const py = floorY - 8 - ((p * 87 + 15) % 42) + Math.sin(t * 0.35 + p * 0.6) * 5;
+          ctx.fillStyle = p % 3 === 0 ? '#fff2d0' : (p % 3 === 1 ? '#d0e8d4' : '#e0d4f0');
+          ctx.beginPath();
+          ctx.arc(px, py, 0.6 + (p % 3) * 0.5, 0, TAU);
           ctx.fill();
         }
         ctx.restore();
       }
 
-      // ── Helper: draw branching finger coral ──
-      function drawBranchCoral(cx, cy, h, color, t, seed) {
+      // ── Helper: draw branching staghorn coral ──
+      function drawBranchCoral(cx, cy, h, color, t, seed, thickBase) {
         ctx.save();
-        ctx.globalAlpha = .58;
-        // Main stalk
-        const s = Math.sin(t * 0.45 + seed * 10);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 4;
+        ctx.globalAlpha = .72;
+        const s = Math.sin(t * 0.35 + seed * 10);
+        const c = Math.cos(t * 0.28 + seed * 8);
+
+        // Main stalk with taper
+        const stalkGrad = ctx.createLinearGradient(cx - 4, cy, cx + 4, cy - h);
+        stalkGrad.addColorStop(0, color);
+        stalkGrad.addColorStop(1, lighten(color, 20));
+        ctx.strokeStyle = stalkGrad;
+        ctx.lineWidth = thickBase;
         ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         ctx.beginPath();
         ctx.moveTo(cx, cy);
-        ctx.bezierCurveTo(cx + s * 3, cy - h * 0.3, cx - s * 2, cy - h * 0.7, cx + s * 2, cy - h);
+        ctx.bezierCurveTo(cx + s * 4, cy - h * 0.3, cx - c * 3, cy - h * 0.65, cx + s * 3 + c * 2, cy - h);
         ctx.stroke();
 
-        // Branches
+        // Side branches — organic placement
         const branches = [
-          { y: 0.25, off: 12, curve: 18 },
-          { y: 0.45, off: -10, curve: -15 },
-          { y: 0.60, off: 14, curve: 20 },
-          { y: 0.75, off: -8, curve: -12 },
+          { y: 0.22, off: 14, curve: 22, len: 0.42, thick: 0.75 },
+          { y: 0.38, off: -12, curve: -18, len: 0.38, thick: 0.65 },
+          { y: 0.52, off: 16, curve: 24, len: 0.35, thick: 0.6 },
+          { y: 0.68, off: -9, curve: -14, len: 0.32, thick: 0.55 },
+          { y: 0.45, off: 20, curve: 16, len: 0.28, thick: 0.5 },
         ];
         for (const br of branches) {
           const by = cy - h * br.y;
-          const bsway = Math.sin(t * 0.6 + seed * 7 + br.y * 3) * 3;
-          ctx.lineWidth = 2.5;
+          const bsway = Math.sin(t * 0.5 + seed * 7 + br.y * 4) * 4 + Math.cos(t * 0.7 + br.y * 6) * 2;
+          ctx.lineWidth = thickBase * br.thick;
+          ctx.strokeStyle = color;
           ctx.beginPath();
-          ctx.moveTo(cx + bsway * 0.3, by);
+          ctx.moveTo(cx + bsway * 0.25, by);
           ctx.bezierCurveTo(
-            cx + bsway + br.off * 0.5, by - 5,
-            cx + bsway + br.off * 0.8, by - 12,
-            cx + bsway + br.off + br.curve * 0.3, by - 16
+            cx + bsway + br.off * 0.4, by - 6,
+            cx + bsway + br.off * 0.75, by - 14,
+            cx + bsway + br.off + br.curve * 0.35, by - h * br.len
           );
           ctx.stroke();
-          // Sub-branch
-          ctx.lineWidth = 1.5;
+          // Tiny sub-branch
+          ctx.lineWidth = thickBase * br.thick * 0.55;
           ctx.beginPath();
-          ctx.moveTo(cx + bsway + br.off * 0.5, by - 4);
+          ctx.moveTo(cx + bsway + br.off * 0.45, by - 5);
           ctx.quadraticCurveTo(
-            cx + bsway + br.off * 0.3 - 6, by - 8,
-            cx + bsway - 8, by - 12
+            cx + bsway + br.off * 0.25 - 7, by - 10,
+            cx + bsway - 9, by - 14
           );
           ctx.stroke();
         }
 
-        // Glow tip dots
-        ctx.fillStyle = 'rgba(255, 255, 220, .65)';
-        const tipX = cx + s * 2;
-        const tipY = cy - h;
-        ctx.beginPath();
-        ctx.arc(tipX, tipY, 3.5, 0, TAU);
-        ctx.fill();
-        // Soft outer glow
-        const glow = ctx.createRadialGradient(tipX, tipY, 1, tipX, tipY, 10);
-        glow.addColorStop(0, color);
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
-        ctx.globalAlpha = .22;
-        ctx.beginPath();
-        ctx.arc(tipX, tipY, 10, 0, TAU);
-        ctx.fill();
+        // Polyp dots along main stalk
+        ctx.fillStyle = 'rgba(255, 255, 240, .5)';
+        for (let d = 0; d < 10; d++) {
+          const dt = d / 10;
+          const dx = cx + Math.sin(t * 0.3 + d * 1.3 + seed * 5) * (dt * 5);
+          const dy = cy - h * dt + Math.cos(d * 2.1) * 2;
+          ctx.beginPath();
+          ctx.arc(dx, dy, 1 + (d % 3) * 0.4, 0, TAU);
+          ctx.fill();
+        }
+
+        // Glow tips on main branches
+        const tipGlows = [
+          { y: 1.0, off: s * 3 + c * 2 },
+          { y: 0.42, off: 14 },
+          { y: 0.38, off: -12 },
+          { y: 0.52, off: 16 },
+          { y: 0.68, off: -9 }
+        ];
+        for (const tg of tipGlows) {
+          const tx = cx + tg.off;
+          const ty = cy - h * tg.y;
+          const glow = ctx.createRadialGradient(tx, ty, 0.5, tx, ty, 9);
+          glow.addColorStop(0, 'rgba(255, 255, 220, .6)');
+          glow.addColorStop(0.5, color);
+          glow.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = glow;
+          ctx.globalAlpha = .3;
+          ctx.beginPath();
+          ctx.arc(tx, ty, 9, 0, TAU);
+          ctx.fill();
+          ctx.globalAlpha = .72;
+          ctx.fillStyle = 'rgba(255, 255, 220, .75)';
+          ctx.beginPath();
+          ctx.arc(tx, ty, 2.5, 0, TAU);
+          ctx.fill();
+        }
 
         ctx.restore();
+
+        function lighten(hex, pct) {
+          const num = parseInt(hex.slice(1), 16);
+          const r = Math.min(255, ((num >> 16) & 0xff) + pct);
+          const g = Math.min(255, ((num >> 8) & 0xff) + pct);
+          const b = Math.min(255, (num & 0xff) + pct);
+          return `rgb(${r},${g},${b})`;
+        }
       }
 
       function drawTorpedo(t) {
@@ -1830,61 +2081,149 @@
 
       function drawPlayer() {
         const blink = player.invuln > 0 && Math.sin(state.time * 48) > 0;
+        const t = state.time;
         ctx.save();
         ctx.translate(player.x, player.y);
         ctx.rotate(player.aim);
         ctx.globalAlpha = blink ? .55 : 1;
 
+        // Shield bubble
         if (player.shield > 0) {
           ctx.save();
           ctx.rotate(-player.aim);
           ctx.strokeStyle = `rgba(70, 242, 255, ${.18 + Math.min(.32, player.shield / 240)})`;
           ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.arc(0, 0, player.r + 13 + Math.sin(state.time * 7) * 2, 0, TAU);
+          ctx.arc(0, 0, player.r + 13 + Math.sin(t * 7) * 2, 0, TAU);
           ctx.stroke();
           ctx.restore();
         }
 
-        ctx.fillStyle = '#ffb238';
+        // Body gradient
+        const bodyGrad = ctx.createLinearGradient(-18, -10, 18, 10);
+        bodyGrad.addColorStop(0, '#ff8c38');
+        bodyGrad.addColorStop(.5, '#ffb238');
+        bodyGrad.addColorStop(1, '#ffd060');
+        ctx.fillStyle = bodyGrad;
         ctx.beginPath();
-        ctx.ellipse(0, 0, 18, 10.5, 0, 0, TAU);
+        ctx.ellipse(0, 0, 20, 12, 0, 0, TAU);
         ctx.fill();
 
+        // Belly stripe
+        ctx.fillStyle = 'rgba(255, 245, 210, .45)';
+        ctx.beginPath();
+        ctx.ellipse(0, 4, 16, 5, 0, 0, TAU);
+        ctx.fill();
+
+        // Scales
+        ctx.strokeStyle = 'rgba(180, 90, 20, .18)';
+        ctx.lineWidth = 1;
+        for (let row = -1; row <= 1; row++) {
+          for (let col = -2; col <= 2; col++) {
+            const sx = col * 7;
+            const sy = row * 5 + Math.sin(col * 1.2) * 1;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 2.2, 0.2, Math.PI - 0.2);
+            ctx.stroke();
+          }
+        }
+
+        // Tail fin — flowing
         ctx.fillStyle = '#ff6f3c';
         ctx.beginPath();
-        ctx.moveTo(-15, 0);
-        ctx.lineTo(-30, -12);
-        ctx.lineTo(-25, 0);
-        ctx.lineTo(-30, 12);
+        ctx.moveTo(-18, 0);
+        ctx.lineTo(-32, -14 + Math.sin(t * 12) * 2);
+        ctx.quadraticCurveTo(-28, 0, -32, 14 + Math.sin(t * 12 + 1) * 2);
+        ctx.closePath();
+        ctx.fill();
+        // Tail highlight
+        ctx.fillStyle = 'rgba(255, 200, 140, .4)';
+        ctx.beginPath();
+        ctx.moveTo(-22, 0);
+        ctx.lineTo(-30, -8 + Math.sin(t * 12) * 1.5);
+        ctx.lineTo(-26, 0);
+        ctx.lineTo(-30, 8 + Math.sin(t * 12 + 1) * 1.5);
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = '#ffd86d';
+        // Dorsal fin
+        ctx.fillStyle = '#ff5a2e';
         ctx.beginPath();
-        ctx.moveTo(-2, -9);
-        ctx.lineTo(-14, -22);
-        ctx.lineTo(10, -12);
+        ctx.moveTo(-4, -10);
+        ctx.quadraticCurveTo(-6, -22, 6, -18);
+        ctx.lineTo(10, -10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 160, 100, .35)';
+        ctx.beginPath();
+        ctx.moveTo(-2, -10);
+        ctx.lineTo(-4, -18);
+        ctx.lineTo(4, -14);
+        ctx.lineTo(6, -10);
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = '#fff7cf';
+        // Pectoral fins
+        ctx.fillStyle = '#ff6f3c';
         ctx.beginPath();
-        ctx.arc(9, -4, 3.4, 0, TAU);
+        ctx.moveTo(-2, 9);
+        ctx.quadraticCurveTo(-8, 20, 4, 16);
+        ctx.lineTo(10, 9);
+        ctx.closePath();
         ctx.fill();
+
+        // Eye — big and alive
+        const eyeX = 10;
+        const eyeY = -5;
+        // Sclera glow
+        ctx.fillStyle = '#fff8e0';
+        ctx.beginPath();
+        ctx.ellipse(eyeX, eyeY, 4.2, 4.8, 0, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(200, 160, 60, .4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Iris
         ctx.fillStyle = '#03172d';
         ctx.beginPath();
-        ctx.arc(10, -4, 1.4, 0, TAU);
+        ctx.arc(eyeX + 0.8, eyeY, 2.6, 0, TAU);
+        ctx.fill();
+        // Pupil highlight
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(eyeX + 1.6, eyeY - 1.2, 1.1, 0, TAU);
+        ctx.fill();
+        // Secondary highlight
+        ctx.fillStyle = 'rgba(255,255,255,.5)';
+        ctx.beginPath();
+        ctx.arc(eyeX - 0.2, eyeY + 1.2, 0.6, 0, TAU);
         ctx.fill();
 
-        ctx.fillStyle = '#52697d';
-        ctx.fillRect(-6, -18, 27, 6);
-        ctx.fillStyle = '#9eb6c8';
-        ctx.fillRect(13, -20, 13, 10);
+        // Torpedo cannon
+        ctx.fillStyle = '#3a5a72';
+        ctx.fillRect(-6, -19, 30, 7);
+        ctx.fillStyle = '#6a8aa5';
+        ctx.fillRect(14, -21, 15, 11);
+        // Cannon barrel tip
         ctx.fillStyle = '#1b3043';
-        ctx.fillRect(23, -18, 7, 6);
+        ctx.fillRect(26, -19, 8, 7);
+        // Small fin on cannon
         ctx.fillStyle = '#314c62';
-        ctx.fillRect(-11, -15, 8, 3);
+        ctx.fillRect(-12, -16, 10, 4);
+        // Cannon glow ring
+        ctx.strokeStyle = 'rgba(70, 242, 255, .35)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(21, -15.5, 5, 0, TAU);
+        ctx.stroke();
+
+        // Tiny mouth
+        ctx.strokeStyle = '#b05020';
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(16, 4, 3, 0.1, Math.PI - 0.1);
+        ctx.stroke();
 
         ctx.restore();
       }
@@ -1900,7 +2239,7 @@
         else if (e.type === 'eel') drawEel(e);
         else if (e.type === 'squid') drawSquid(e);
         else if (e.type === 'ray') drawRay(e);
-        else if (e.type === 'megalodon') drawShark(e, true);
+        else if (e.type === 'megalodon') drawKraken(e);
 
         ctx.restore();
 
@@ -1909,7 +2248,7 @@
           ctx.save();
           ctx.fillStyle = 'rgba(0, 0, 0, .46)';
           ctx.fillRect(e.x - width / 2, e.y - e.r - 15, width, 5);
-          ctx.fillStyle = e.type === 'megalodon' ? '#ff5f7d' : '#ffe66d';
+          ctx.fillStyle = e.type === 'megalodon' ? '#ff3355' : '#ffe66d';
           ctx.fillRect(e.x - width / 2, e.y - e.r - 15, width * clamp(e.hp / e.maxHp, 0, 1), 5);
           ctx.restore();
         }
@@ -1917,173 +2256,718 @@
 
       function drawShark(e, boss) {
         const s = boss ? 1.35 : 1;
-        ctx.fillStyle = boss ? '#314352' : '#637886';
+        const t = state.time;
+        // Body main
+        const bodyGrad = ctx.createLinearGradient(-e.r, -e.r * .3, e.r, e.r * .3);
+        bodyGrad.addColorStop(0, boss ? '#1e2b38' : '#4a5e6e');
+        bodyGrad.addColorStop(.5, boss ? '#314352' : '#637886');
+        bodyGrad.addColorStop(1, boss ? '#4a5e70' : '#7a8e9e');
+        ctx.fillStyle = bodyGrad;
         ctx.beginPath();
         ctx.ellipse(0, 0, e.r * 1.35, e.r * .54, 0, 0, TAU);
         ctx.fill();
-        ctx.fillStyle = boss ? '#c7d7df' : '#d8edf2';
+
+        // Belly lighter underside
+        ctx.fillStyle = boss ? 'rgba(180, 200, 210, .22)' : 'rgba(210, 230, 240, .35)';
         ctx.beginPath();
-        ctx.ellipse(12 * s, 5 * s, e.r * .62, e.r * .23, 0, 0, TAU);
+        ctx.ellipse(0, e.r * .15, e.r * 1.1, e.r * .32, 0, 0, TAU);
         ctx.fill();
-        ctx.fillStyle = boss ? '#26333d' : '#4a5d68';
+
+        // Dorsal fin
+        ctx.fillStyle = boss ? '#1e2b38' : '#4a5e6e';
+        ctx.beginPath();
+        ctx.moveTo(-4 * s, -e.r * .42);
+        ctx.lineTo(-12 * s, -e.r * 1.18);
+        ctx.quadraticCurveTo(0, -e.r * 1.05, 12 * s, -e.r * .48);
+        ctx.closePath();
+        ctx.fill();
+        // Fin edge
+        ctx.strokeStyle = 'rgba(255,255,255,.12)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-12 * s, -e.r * 1.18);
+        ctx.quadraticCurveTo(0, -e.r * 1.05, 12 * s, -e.r * .48);
+        ctx.stroke();
+
+        // Tail (caudal) fin
+        ctx.fillStyle = boss ? '#1e2b38' : '#4a5e6e';
         ctx.beginPath();
         ctx.moveTo(-e.r * .86, 0);
-        ctx.lineTo(-e.r * 1.55, -e.r * .58);
-        ctx.lineTo(-e.r * 1.31, 0);
-        ctx.lineTo(-e.r * 1.55, e.r * .58);
+        ctx.lineTo(-e.r * 1.65, -e.r * .65);
+        ctx.quadraticCurveTo(-e.r * 1.35, 0, -e.r * 1.65, e.r * .65);
         ctx.closePath();
         ctx.fill();
+        // Tail highlight
+        ctx.fillStyle = 'rgba(255,255,255,.1)';
         ctx.beginPath();
-        ctx.moveTo(-4 * s, -e.r * .46);
-        ctx.lineTo(-18 * s, -e.r * 1.08);
-        ctx.lineTo(12 * s, -e.r * .44);
+        ctx.moveTo(-e.r * .86, 0);
+        ctx.lineTo(-e.r * 1.45, -e.r * .35);
+        ctx.lineTo(-e.r * 1.25, 0);
+        ctx.lineTo(-e.r * 1.45, e.r * .35);
         ctx.closePath();
+        ctx.fill();
+
+        // Pectoral fins
+        ctx.fillStyle = boss ? '#26333d' : '#4a5d68';
+        ctx.beginPath();
+        ctx.moveTo(6 * s, e.r * .22);
+        ctx.lineTo(-2 * s, e.r * .72);
+        ctx.lineTo(10 * s, e.r * .38);
+        ctx.closePath();
+        ctx.fill();
+
+        // Eye
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(e.r * .62, -e.r * .18, boss ? 3.8 : 2.8, boss ? 3.4 : 2.4, 0, 0, TAU);
         ctx.fill();
         ctx.fillStyle = '#071522';
         ctx.beginPath();
-        ctx.arc(e.r * .58, -e.r * .18, boss ? 3.5 : 2.4, 0, TAU);
+        ctx.arc(e.r * .65, -e.r * .18, boss ? 2.2 : 1.4, 0, TAU);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,.24)';
-        ctx.lineWidth = boss ? 3 : 2;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(e.r * .68, -e.r * .22, boss ? 0.9 : 0.5, 0, TAU);
+        ctx.fill();
+
+        // Gill slits
+        ctx.strokeStyle = 'rgba(0,0,0,.35)';
+        ctx.lineWidth = boss ? 2.5 : 1.8;
         for (let i = 0; i < 3; i++) {
           ctx.beginPath();
-          ctx.moveTo(e.r * .2 + i * 5 * s, -e.r * .32);
-          ctx.lineTo(e.r * .14 + i * 5 * s, e.r * .08);
+          ctx.moveTo(e.r * .15 + i * 5.5 * s, -e.r * .28);
+          ctx.quadraticCurveTo(e.r * .12 + i * 5.5 * s, -e.r * .02, e.r * .08 + i * 5.5 * s, e.r * .14);
           ctx.stroke();
         }
-        ctx.fillStyle = 'white';
-        for (let i = 0; i < (boss ? 8 : 5); i++) {
+
+        // Teeth
+        ctx.fillStyle = 'rgba(255,255,255,.92)';
+        for (let i = 0; i < (boss ? 9 : 6); i++) {
+          const tx = e.r * .82 - i * 5.2 * s;
           ctx.beginPath();
-          ctx.moveTo(e.r * .78 - i * 5 * s, e.r * .19);
-          ctx.lineTo(e.r * .72 - i * 5 * s, e.r * .34);
-          ctx.lineTo(e.r * .64 - i * 5 * s, e.r * .19);
+          ctx.moveTo(tx, e.r * .18);
+          ctx.lineTo(tx - 2.2 * s, e.r * .38);
+          ctx.lineTo(tx - 4.2 * s, e.r * .18);
           ctx.closePath();
           ctx.fill();
         }
+
+        // Nostril
+        ctx.fillStyle = 'rgba(0,0,0,.25)';
+        ctx.beginPath();
+        ctx.ellipse(e.r * .95, -e.r * .08, 1.2, 0.7, 0.4, 0, TAU);
+        ctx.fill();
       }
 
       function drawPiranha(e) {
-        ctx.fillStyle = '#ff5e4f';
+        const t = state.time;
+        // Body — gradient red-orange
+        const bodyGrad = ctx.createLinearGradient(-e.r, -e.r * .4, e.r, e.r * .4);
+        bodyGrad.addColorStop(0, '#cc3018');
+        bodyGrad.addColorStop(.5, '#ff5e4f');
+        bodyGrad.addColorStop(1, '#ff8855');
+        ctx.fillStyle = bodyGrad;
         ctx.beginPath();
         ctx.ellipse(0, 0, e.r * 1.2, e.r * .82, 0, 0, TAU);
         ctx.fill();
-        ctx.fillStyle = '#ffbf47';
+
+        // Yellow belly
+        ctx.fillStyle = 'rgba(255, 220, 120, .4)';
         ctx.beginPath();
-        ctx.moveTo(-e.r * .85, 0);
-        ctx.lineTo(-e.r * 1.55, -e.r * .65);
-        ctx.lineTo(-e.r * 1.3, 0);
-        ctx.lineTo(-e.r * 1.55, e.r * .65);
+        ctx.ellipse(0, e.r * .25, e.r * .9, e.r * .42, 0, 0, TAU);
+        ctx.fill();
+
+        // Black lateral stripe
+        ctx.fillStyle = 'rgba(20, 15, 30, .55)';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, e.r * 1.05, e.r * .18, 0, 0, TAU);
+        ctx.fill();
+
+        // Tail fin
+        ctx.fillStyle = '#cc3018';
+        ctx.beginPath();
+        ctx.moveTo(-e.r * .9, 0);
+        ctx.lineTo(-e.r * 1.65, -e.r * .55 + Math.sin(t * 14 + e.phase) * 2);
+        ctx.quadraticCurveTo(-e.r * 1.35, 0, -e.r * 1.65, e.r * .55 + Math.sin(t * 14 + e.phase + 1) * 2);
         ctx.closePath();
         ctx.fill();
+
+        // Dorsal spine
+        ctx.fillStyle = '#992210';
+        ctx.beginPath();
+        ctx.moveTo(-e.r * .15, -e.r * .72);
+        ctx.lineTo(-e.r * .05, -e.r * 1.1);
+        ctx.lineTo(e.r * .12, -e.r * .68);
+        ctx.closePath();
+        ctx.fill();
+
+        // Eye
+        ctx.fillStyle = '#ffeaa7';
+        ctx.beginPath();
+        ctx.ellipse(e.r * .55, -e.r * .22, 3.2, 3.6, 0, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(120, 60, 20, .35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
         ctx.fillStyle = '#181822';
         ctx.beginPath();
-        ctx.arc(e.r * .5, -e.r * .25, 2.2, 0, TAU);
+        ctx.arc(e.r * .58, -e.r * .22, 2, 0, TAU);
         ctx.fill();
-        ctx.fillStyle = 'white';
-        for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(e.r * .62, -e.r * .28, 0.8, 0, TAU);
+        ctx.fill();
+
+        // Sharp teeth
+        ctx.fillStyle = 'rgba(255, 255, 255, .95)';
+        for (let i = 0; i < 4; i++) {
+          const tx = e.r * .85 - i * 3.8;
           ctx.beginPath();
-          ctx.moveTo(e.r * .8 - i * 4, e.r * .12);
-          ctx.lineTo(e.r * .72 - i * 4, e.r * .32);
-          ctx.lineTo(e.r * .62 - i * 4, e.r * .12);
+          ctx.moveTo(tx, e.r * .14);
+          ctx.lineTo(tx - 1.6, e.r * .36);
+          ctx.lineTo(tx - 3.0, e.r * .14);
           ctx.closePath();
           ctx.fill();
         }
+        // Lower jaw teeth
+        for (let i = 0; i < 3; i++) {
+          const tx = e.r * .78 - i * 3.8;
+          ctx.beginPath();
+          ctx.moveTo(tx, e.r * .14);
+          ctx.lineTo(tx - 1.6, -e.r * .02);
+          ctx.lineTo(tx - 3.0, e.r * .14);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Red eye brow ridge
+        ctx.fillStyle = 'rgba(140, 20, 10, .35)';
+        ctx.beginPath();
+        ctx.ellipse(e.r * .5, -e.r * .38, e.r * .35, e.r * .12, 0.2, 0, TAU);
+        ctx.fill();
       }
 
       function drawJelly(e) {
-        const pulse = 1 + Math.sin(state.time * 4 + e.phase) * .08;
+        const t = state.time;
+        const pulse = 1 + Math.sin(t * 4 + e.phase) * .1;
         ctx.scale(pulse, pulse);
-        const grad = ctx.createRadialGradient(0, -4, 2, 0, 0, e.r);
-        grad.addColorStop(0, 'rgba(255,255,255,.9)');
-        grad.addColorStop(.45, 'rgba(193,126,255,.8)');
-        grad.addColorStop(1, 'rgba(119,89,255,.32)');
-        ctx.fillStyle = grad;
+
+        // Bell body — translucent purple
+        const bellGrad = ctx.createRadialGradient(0, -6, 2, 0, -2, e.r);
+        bellGrad.addColorStop(0, 'rgba(255,255,255,.85)');
+        bellGrad.addColorStop(.35, 'rgba(210,160,255,.65)');
+        bellGrad.addColorStop(.7, 'rgba(160,100,255,.4)');
+        bellGrad.addColorStop(1, 'rgba(100,60,220,.15)');
+        ctx.fillStyle = bellGrad;
         ctx.beginPath();
-        ctx.arc(0, -2, e.r, Math.PI, 0);
-        ctx.quadraticCurveTo(e.r * .58, e.r * .55, 0, e.r * .38);
-        ctx.quadraticCurveTo(-e.r * .58, e.r * .55, -e.r, -2);
+        ctx.arc(0, -3, e.r, Math.PI, 0);
+        ctx.quadraticCurveTo(e.r * .62, e.r * .55, 0, e.r * .42);
+        ctx.quadraticCurveTo(-e.r * .62, e.r * .55, -e.r, -3);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(217,190,255,.72)';
-        ctx.lineWidth = 2;
-        for (let i = -2; i <= 2; i++) {
+
+        // Rim highlight
+        ctx.strokeStyle = 'rgba(240,220,255,.55)';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(0, -3, e.r * .95, Math.PI + 0.2, -0.2);
+        ctx.stroke();
+
+        // Inner organs glow
+        ctx.fillStyle = 'rgba(200, 140, 255, .25)';
+        ctx.beginPath();
+        ctx.ellipse(0, -e.r * .15, e.r * .25, e.r * .18, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 200, 255, .4)';
+        ctx.beginPath();
+        ctx.arc(0, -e.r * .15, e.r * .08, 0, TAU);
+        ctx.fill();
+
+        // Tentacles — more numerous and silky
+        const tentCount = 7;
+        for (let i = -Math.floor(tentCount / 2); i <= Math.floor(tentCount / 2); i++) {
+          const tx = i * e.r * .18;
+          ctx.strokeStyle = `rgba(210, 170, 255, ${.55 - Math.abs(i) * .06})`;
+          ctx.lineWidth = 2 - Math.abs(i) * 0.25;
+          ctx.lineCap = 'round';
           ctx.beginPath();
-          ctx.moveTo(i * e.r * .24, e.r * .26);
-          for (let y = e.r * .28; y < e.r * 1.55; y += 8) {
-            ctx.lineTo(i * e.r * .24 + Math.sin(y * .13 + state.time * 5 + i) * 7, y);
+          ctx.moveTo(tx, e.r * .26);
+          let prevX = tx;
+          let prevY = e.r * .26;
+          for (let seg = 0; seg < 8; seg++) {
+            const sy = e.r * .26 + seg * e.r * .16;
+            const wave = Math.sin(sy * .15 + t * 4 + i * 1.2 + e.phase) * (3 + seg * 1.2);
+            const nx = tx + wave;
+            const ny = sy;
+            ctx.quadraticCurveTo((prevX + nx) / 2, (prevY + ny) / 2 + 2, nx, ny);
+            prevX = nx;
+            prevY = ny;
+          }
+          ctx.stroke();
+          // Tentacle tip glow
+          ctx.fillStyle = 'rgba(255, 220, 255, .5)';
+          ctx.beginPath();
+          ctx.arc(prevX, prevY, 1.2, 0, TAU);
+          ctx.fill();
+        }
+
+        // Oral arms (thicker central tentacles)
+        for (let i = -1; i <= 1; i += 2) {
+          const ox = i * e.r * .08;
+          ctx.strokeStyle = 'rgba(180, 140, 255, .45)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(ox, e.r * .22);
+          for (let y = e.r * .28; y < e.r * 1.35; y += 10) {
+            ctx.lineTo(ox + Math.sin(y * .12 + t * 3 + i) * 5, y);
           }
           ctx.stroke();
         }
       }
 
       function drawEel(e) {
-        ctx.strokeStyle = '#e5dd74';
-        ctx.lineWidth = e.r * .58;
+        const t = state.time;
+        const segments = 14;
+        const pts = [];
+        for (let i = 0; i <= segments; i++) {
+          const prog = i / segments;
+          const x = -e.r * 1.7 + prog * e.r * 3.4;
+          const wave = Math.sin(prog * 5 + t * 10 + e.phase) * e.r * .22 * (1 - Math.abs(prog - 0.5) * 1.2);
+          const y = wave + Math.sin(prog * 8 + t * 6) * e.r * .08;
+          pts.push({ x, y });
+        }
+
+        // Eel body — thick sinuous stroke
+        ctx.strokeStyle = '#d4cc68';
+        ctx.lineWidth = e.r * .65;
         ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         ctx.beginPath();
-        for (let i = 0; i <= 9; i++) {
-          const x = -e.r * 1.6 + i * e.r * .36;
-          const y = Math.sin(i * .9 + state.time * 12 + e.phase) * e.r * .26;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+        for (let i = 0; i < pts.length; i++) {
+          if (i === 0) ctx.moveTo(pts[i].x, pts[i].y);
+          else ctx.quadraticCurveTo(pts[i - 1].x, pts[i - 1].y, (pts[i - 1].x + pts[i].x) / 2, (pts[i - 1].y + pts[i].y) / 2);
         }
         ctx.stroke();
+
+        // Dorsal highlight
+        ctx.strokeStyle = 'rgba(255, 255, 220, .25)';
+        ctx.lineWidth = e.r * .22;
+        ctx.beginPath();
+        for (let i = 0; i < pts.length; i++) {
+          const hx = pts[i].x;
+          const hy = pts[i].y - e.r * .22;
+          if (i === 0) ctx.moveTo(hx, hy);
+          else ctx.lineTo(hx, hy);
+        }
+        ctx.stroke();
+
+        // Head
+        const head = pts[pts.length - 1];
         ctx.fillStyle = '#fff8a8';
         ctx.beginPath();
-        ctx.ellipse(e.r * 1.35, 0, e.r * .6, e.r * .42, 0, 0, TAU);
+        ctx.ellipse(head.x, head.y, e.r * .62, e.r * .48, 0, 0, TAU);
         ctx.fill();
-        ctx.fillStyle = '#061827';
+
+        // Eye
+        ctx.fillStyle = '#ffe030';
         ctx.beginPath();
-        ctx.arc(e.r * 1.55, -e.r * .12, 2.2, 0, TAU);
+        ctx.ellipse(head.x + e.r * .18, head.y - e.r * .14, 3.2, 3.6, 0, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(100, 80, 20, .4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = '#0a1020';
+        ctx.beginPath();
+        ctx.arc(head.x + e.r * .22, head.y - e.r * .14, 1.8, 0, TAU);
+        ctx.fill();
+        // Vertical slit pupil
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(head.x + e.r * .24, head.y - e.r * .18, 0.6, 1.1, 0, 0, TAU);
+        ctx.fill();
+
+        // Maw / mouth line
+        ctx.strokeStyle = 'rgba(60, 50, 20, .5)';
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(head.x + e.r * .25, head.y + e.r * .08);
+        ctx.quadraticCurveTo(head.x + e.r * .45, head.y + e.r * .22, head.x + e.r * .18, head.y + e.r * .18);
+        ctx.stroke();
+
+        // Tiny fin behind head
+        ctx.fillStyle = 'rgba(212, 204, 104, .6)';
+        ctx.beginPath();
+        ctx.moveTo(pts[pts.length - 3].x, pts[pts.length - 3].y - e.r * .2);
+        ctx.lineTo(pts[pts.length - 3].x + 4, pts[pts.length - 3].y - e.r * .55);
+        ctx.lineTo(pts[pts.length - 2].x, pts[pts.length - 2].y - e.r * .25);
+        ctx.closePath();
         ctx.fill();
       }
 
       function drawSquid(e) {
-        ctx.fillStyle = '#c56dff';
+        const t = state.time;
+        // Mantle body
+        const mantleGrad = ctx.createLinearGradient(0, -e.r, 0, e.r);
+        mantleGrad.addColorStop(0, '#d070ff');
+        mantleGrad.addColorStop(.5, '#b050e0');
+        mantleGrad.addColorStop(1, '#7a35aa');
+        ctx.fillStyle = mantleGrad;
         ctx.beginPath();
         ctx.ellipse(0, -2, e.r * .72, e.r, 0, 0, TAU);
         ctx.fill();
+
+        // Fins on mantle sides
+        ctx.fillStyle = 'rgba(180, 100, 240, .5)';
+        ctx.beginPath();
+        ctx.moveTo(-e.r * .55, -e.r * .25);
+        ctx.quadraticCurveTo(-e.r * .95, -e.r * .55, -e.r * .35, -e.r * .85);
+        ctx.quadraticCurveTo(-e.r * .15, -e.r * .55, -e.r * .55, -e.r * .25);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(e.r * .55, -e.r * .25);
+        ctx.quadraticCurveTo(e.r * .95, -e.r * .55, e.r * .35, -e.r * .85);
+        ctx.quadraticCurveTo(e.r * .15, -e.r * .55, e.r * .55, -e.r * .25);
+        ctx.fill();
+
+        // Pointed top
         ctx.fillStyle = '#8c45d8';
         ctx.beginPath();
-        ctx.moveTo(-e.r * .45, -e.r * .55);
-        ctx.lineTo(0, -e.r * 1.35);
-        ctx.lineTo(e.r * .45, -e.r * .55);
+        ctx.moveTo(-e.r * .4, -e.r * .55);
+        ctx.lineTo(0, -e.r * 1.42);
+        ctx.lineTo(e.r * .4, -e.r * .55);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = '#d998ff';
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        for (let i = -2; i <= 2; i++) {
-          ctx.beginPath();
-          ctx.moveTo(-e.r * .2, e.r * .45);
-          ctx.quadraticCurveTo(i * e.r * .25, e.r * .95, i * e.r * .38, e.r * 1.4 + Math.sin(state.time * 6 + i) * 5);
-          ctx.stroke();
-        }
-        ctx.fillStyle = '#071522';
+        // Top highlight
+        ctx.fillStyle = 'rgba(255, 200, 255, .15)';
         ctx.beginPath();
-        ctx.arc(e.r * .22, -e.r * .1, 2.5, 0, TAU);
-        ctx.arc(e.r * .22, e.r * .24, 2.5, 0, TAU);
+        ctx.moveTo(-e.r * .2, -e.r * .55);
+        ctx.lineTo(0, -e.r * 1.2);
+        ctx.lineTo(e.r * .2, -e.r * .55);
+        ctx.closePath();
+        ctx.fill();
+
+        // Arms — 8 tentacles with curling animation
+        const armCount = 8;
+        for (let i = 0; i < armCount; i++) {
+          const angle = (i / armCount) * TAU - Math.PI * .5;
+          const baseX = Math.cos(angle) * e.r * .22;
+          const baseY = Math.sin(angle) * e.r * .38;
+          const curl = Math.sin(t * 5 + i * 1.3 + e.phase) * 6;
+          const reach = e.r * (.95 + Math.sin(i * 2.1) * .25);
+
+          ctx.strokeStyle = i % 2 === 0 ? '#d998ff' : '#c070ee';
+          ctx.lineWidth = 2.8;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(baseX, baseY);
+          ctx.quadraticCurveTo(baseX + curl, baseY + reach * .5, baseX + Math.cos(angle + 0.3) * reach, baseY + Math.sin(angle + 0.3) * reach);
+          ctx.stroke();
+
+          // Suckers
+          ctx.fillStyle = 'rgba(255, 220, 255, .55)';
+          for (let s = 0; s < 3; s++) {
+            const tSeg = (s + 1) / 4;
+            const sx = baseX + (baseX + Math.cos(angle + 0.3) * reach - baseX) * tSeg + curl * (1 - tSeg) * 0.3;
+            const sy = baseY + (baseY + Math.sin(angle + 0.3) * reach - baseY) * tSeg;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 1.4, 0, TAU);
+            ctx.fill();
+          }
+        }
+
+        // Eyes — large expressive
+        for (let side = -1; side <= 1; side += 2) {
+          const ex = e.r * .18 * side;
+          const ey = -e.r * .08;
+          // Sclera
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.ellipse(ex, ey, 3.6, 4.2, side * 0.15, 0, TAU);
+          ctx.fill();
+          // Iris
+          ctx.fillStyle = '#071522';
+          ctx.beginPath();
+          ctx.arc(ex + side * 0.6, ey, 2.4, 0, TAU);
+          ctx.fill();
+          // Pupil
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ex + side * 1.0, ey - 1.0, 0.9, 0, TAU);
+          ctx.fill();
+          // Eyelid shadow
+          ctx.fillStyle = 'rgba(120, 60, 180, .35)';
+          ctx.beginPath();
+          ctx.ellipse(ex, ey - 2.8, 3.2, 1.4, side * 0.1, 0, TAU);
+          ctx.fill();
+        }
+
+        // Siphon
+        ctx.fillStyle = 'rgba(20, 10, 30, .5)';
+        ctx.beginPath();
+        ctx.ellipse(0, -e.r * .15, 2.5, 1.8, 0, 0, TAU);
         ctx.fill();
       }
 
       function drawRay(e) {
-        ctx.fillStyle = '#5cc9d6';
+        const t = state.time;
+        // Wing gradient
+        const wingGrad = ctx.createLinearGradient(-e.r, 0, e.r, 0);
+        wingGrad.addColorStop(0, '#3a8a95');
+        wingGrad.addColorStop(.5, '#5cc9d6');
+        wingGrad.addColorStop(1, '#3a8a95');
+        ctx.fillStyle = wingGrad;
         ctx.beginPath();
-        ctx.moveTo(e.r * 1.25, 0);
-        ctx.quadraticCurveTo(0, -e.r * 1.1, -e.r * 1.25, 0);
-        ctx.quadraticCurveTo(0, e.r * 1.1, e.r * 1.25, 0);
+        ctx.moveTo(e.r * 1.3, 0);
+        ctx.quadraticCurveTo(0, -e.r * 1.15, -e.r * 1.3, 0);
+        ctx.quadraticCurveTo(0, e.r * 1.15, e.r * 1.3, 0);
         ctx.fill();
-        ctx.strokeStyle = '#5cc9d6';
-        ctx.lineWidth = 4;
+
+        // Dorsal pattern — spots
+        ctx.fillStyle = 'rgba(20, 50, 55, .4)';
+        for (let row = 0; row < 3; row++) {
+          for (let col = 0; col < 4; col++) {
+            const px = -e.r * .6 + col * e.r * .4;
+            const py = -e.r * .35 + row * e.r * .35;
+            ctx.beginPath();
+            ctx.ellipse(px, py, 2.2, 1.6, 0, 0, TAU);
+            ctx.fill();
+          }
+        }
+
+        // Wing edge line
+        ctx.strokeStyle = 'rgba(140, 230, 240, .35)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(e.r * 1.3, 0);
+        ctx.quadraticCurveTo(0, -e.r * 1.15, -e.r * 1.3, 0);
+        ctx.stroke();
+
+        // Tail with stinger
+        ctx.strokeStyle = '#4ab0bd';
+        ctx.lineWidth = 5;
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(-e.r * 1.1, 0);
-        ctx.lineTo(-e.r * 2.1, Math.sin(state.time * 4 + e.phase) * 8);
+        ctx.moveTo(-e.r * 1.15, 0);
+        const tailWave = Math.sin(t * 4 + e.phase) * 10;
+        ctx.quadraticCurveTo(-e.r * 1.6, tailWave * .5, -e.r * 2.15, tailWave);
         ctx.stroke();
-        ctx.fillStyle = '#073044';
+        // Stinger
+        ctx.strokeStyle = '#223344';
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(e.r * .35, -e.r * .18, 2.5, 0, TAU);
-        ctx.arc(e.r * .35, e.r * .18, 2.5, 0, TAU);
+        ctx.moveTo(-e.r * 2.15, tailWave);
+        ctx.lineTo(-e.r * 2.55, tailWave + 3);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(180, 40, 40, .7)';
+        ctx.beginPath();
+        ctx.arc(-e.r * 2.35, tailWave + 1.2, 1.5, 0, TAU);
         ctx.fill();
+
+        // Eyes
+        for (let side = -1; side <= 1; side += 2) {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.ellipse(e.r * .32 * side, -e.r * .18, 2.6, 3.0, 0, 0, TAU);
+          ctx.fill();
+          ctx.fillStyle = '#0a2030';
+          ctx.beginPath();
+          ctx.arc(e.r * .34 * side, -e.r * .18, 1.5, 0, TAU);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(e.r * .36 * side, -e.r * .24, 0.6, 0, TAU);
+          ctx.fill();
+        }
+
+        // Spiracles
+        ctx.fillStyle = 'rgba(20, 50, 60, .45)';
+        for (let side = -1; side <= 1; side += 2) {
+          ctx.beginPath();
+          ctx.ellipse(e.r * .15 * side, e.r * .12, 2.2, 1.2, 0, 0, TAU);
+          ctx.fill();
+        }
+      }
+
+      function drawKraken(e) {
+        const t = state.time;
+        const pulse = 1 + Math.sin(t * 1.8 + e.phase) * .04;
+        ctx.save();
+        ctx.scale(pulse, pulse);
+
+        // ═══ Mantle / Head ═══
+        // Dark body base
+        const bodyGrad = ctx.createRadialGradient(0, -e.r * .35, e.r * .1, 0, 0, e.r);
+        bodyGrad.addColorStop(0, '#2a1535');
+        bodyGrad.addColorStop(.45, '#180a22');
+        bodyGrad.addColorStop(.8, '#0c0414');
+        bodyGrad.addColorStop(1, 'rgba(6,2,10,.85)');
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, e.r * .95, e.r * .82, 0, 0, TAU);
+        ctx.fill();
+
+        // Mantle ridges
+        ctx.strokeStyle = 'rgba(80, 30, 100, .25)';
+        ctx.lineWidth = 2;
+        for (let ridge = -2; ridge <= 2; ridge++) {
+          ctx.beginPath();
+          const rx = ridge * e.r * .28;
+          ctx.moveTo(rx, -e.r * .72);
+          ctx.quadraticCurveTo(rx + ridge * 3, 0, rx * .7, e.r * .65);
+          ctx.stroke();
+        }
+
+        // ═══ Eyes — huge glowing red ═══
+        for (let side = -1; side <= 1; side += 2) {
+          const ex = e.r * .32 * side;
+          const ey = -e.r * .12;
+
+          // Outer glow aura
+          const glow = ctx.createRadialGradient(ex, ey, 2, ex, ey, 18);
+          glow.addColorStop(0, 'rgba(255, 40, 40, .45)');
+          glow.addColorStop(.5, 'rgba(180, 10, 10, .18)');
+          glow.addColorStop(1, 'rgba(80, 0, 0, 0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(ex, ey, 18, 0, TAU);
+          ctx.fill();
+
+          // Eye socket shadow
+          ctx.fillStyle = 'rgba(10, 2, 6, .6)';
+          ctx.beginPath();
+          ctx.ellipse(ex, ey + 1.5, 9, 10.5, side * .1, 0, TAU);
+          ctx.fill();
+
+          // Sclera
+          ctx.fillStyle = '#1a0508';
+          ctx.beginPath();
+          ctx.ellipse(ex, ey, 8.5, 9.5, side * .05, 0, TAU);
+          ctx.fill();
+
+          // Iris
+          ctx.fillStyle = '#cc0a0a';
+          ctx.beginPath();
+          ctx.arc(ex + side * 0.4, ey, 5.2, 0, TAU);
+          ctx.fill();
+
+          // Vertical slit pupil
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.ellipse(ex + side * 0.6, ey, 1.6, 4.8, 0, 0, TAU);
+          ctx.fill();
+
+          // Pupil inner red glow
+          ctx.fillStyle = 'rgba(255, 30, 30, .35)';
+          ctx.beginPath();
+          ctx.ellipse(ex + side * 0.6, ey, 0.9, 2.8, 0, 0, TAU);
+          ctx.fill();
+
+          // Eye highlight
+          ctx.fillStyle = 'rgba(255, 180, 180, .75)';
+          ctx.beginPath();
+          ctx.arc(ex + side * 2.2, ey - 2.6, 1.8, 0, TAU);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255, 120, 120, .35)';
+          ctx.beginPath();
+          ctx.arc(ex + side * 1.0, ey + 3.0, 0.8, 0, TAU);
+          ctx.fill();
+        }
+
+        // ═══ Beak / Mouth ═══
+        ctx.fillStyle = '#0a0206';
+        ctx.beginPath();
+        ctx.moveTo(-e.r * .12, e.r * .42);
+        ctx.lineTo(0, e.r * .68 + Math.sin(t * 3) * 2);
+        ctx.lineTo(e.r * .12, e.r * .42);
+        ctx.closePath();
+        ctx.fill();
+        // Beak edge
+        ctx.strokeStyle = 'rgba(80, 20, 20, .6)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-e.r * .12, e.r * .42);
+        ctx.lineTo(0, e.r * .68 + Math.sin(t * 3) * 2);
+        ctx.lineTo(e.r * .12, e.r * .42);
+        ctx.stroke();
+
+        // ═══ Tentacles ═══
+        const tentacleCount = 10;
+        for (let i = 0; i < tentacleCount; i++) {
+          const angle = (i / tentacleCount) * TAU + Math.PI * .5;
+          const baseX = Math.cos(angle) * e.r * .55;
+          const baseY = Math.sin(angle) * e.r * .48;
+          const len = e.r * (1.6 + Math.sin(i * 2.7) * .35);
+          const phase = i * 1.9 + e.phase;
+
+          // Tentacle segments for smooth animation
+          const segs = 12;
+          const pts = [{ x: baseX, y: baseY }];
+          for (let s = 1; s <= segs; s++) {
+            const prog = s / segs;
+            const tx = baseX + Math.cos(angle + Math.sin(t * 1.6 + phase + prog * 3) * .35) * len * prog;
+            const ty = baseY + Math.sin(angle + Math.cos(t * 1.4 + phase + prog * 2.5) * .3) * len * prog * .85;
+            pts.push({ x: tx, y: ty });
+          }
+
+          // Main tentacle stroke — thick at base, tapering
+          for (let s = 0; s < pts.length - 1; s++) {
+            const prog = s / (pts.length - 1);
+            const thick = (1 - prog) * 7 + 1.5;
+            ctx.strokeStyle = prog < .4 ? '#2a1038' : (prog < .7 ? '#3a1848' : '#4a2058');
+            ctx.lineWidth = thick;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(pts[s].x, pts[s].y);
+            ctx.quadraticCurveTo(
+              (pts[s].x + pts[s + 1].x) / 2,
+              (pts[s].y + pts[s + 1].y) / 2,
+              pts[s + 1].x, pts[s + 1].y
+            );
+            ctx.stroke();
+          }
+
+          // Suction cups on underside of tentacles
+          for (let s = 2; s < pts.length - 1; s += 2) {
+            const prog = s / (pts.length - 1);
+            const sx = pts[s].x;
+            const sy = pts[s].y;
+            const cupSize = (1 - prog) * 2.8 + 0.8;
+            const normal = Math.atan2(pts[s + 1].y - pts[s - 1].y, pts[s + 1].x - pts[s - 1].x) + Math.PI * .5;
+            ctx.fillStyle = 'rgba(160, 80, 140, .55)';
+            ctx.beginPath();
+            ctx.ellipse(sx + Math.cos(normal) * cupSize, sy + Math.sin(normal) * cupSize, cupSize, cupSize * .7, normal, 0, TAU);
+            ctx.fill();
+            // Cup inner shadow
+            ctx.fillStyle = 'rgba(40, 10, 30, .4)';
+            ctx.beginPath();
+            ctx.ellipse(sx + Math.cos(normal) * cupSize * 1.1, sy + Math.sin(normal) * cupSize * 1.1, cupSize * .45, cupSize * .35, normal, 0, TAU);
+            ctx.fill();
+          }
+        }
+
+        // ═══ Ink cloud aura ═══
+        ctx.globalAlpha = .12;
+        const inkGrad = ctx.createRadialGradient(0, 0, e.r * .5, 0, 0, e.r * 1.6);
+        inkGrad.addColorStop(0, 'rgba(40, 10, 60, 0)');
+        inkGrad.addColorStop(.6, 'rgba(30, 8, 45, .5)');
+        inkGrad.addColorStop(1, 'rgba(20, 4, 30, 0)');
+        ctx.fillStyle = inkGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, e.r * 1.6, 0, TAU);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // ═══ Subtle bioluminescent spots on mantle ═══
+        ctx.fillStyle = 'rgba(200, 60, 255, .22)';
+        for (let b = 0; b < 8; b++) {
+          const ba = (b / 8) * TAU + t * .15;
+          const br = e.r * (.35 + (b % 3) * .18);
+          ctx.beginPath();
+          ctx.arc(Math.cos(ba) * br, Math.sin(ba) * br * .8, 1.5 + (b % 2) * .8, 0, TAU);
+          ctx.fill();
+        }
+
+        ctx.restore();
       }
 
       function drawPowerup(p) {
