@@ -390,82 +390,106 @@
         return audioCtx;
       }
 
-      // ── Background Music (Continuous — no scheduling) ──
+      // ── Background Music (Buffer-based — rock solid) ──
       let bgmNodes = null;
       const BGM = {
         playing: false,
 
         start() {
           if (this.playing) return;
-          // Stop any leftover nodes from a previous run
           if (bgmNodes) this._stopAll();
 
           try {
             const ctx = getAudioCtx();
             if (ctx.state === 'suspended') ctx.resume();
 
+            const sr = ctx.sampleRate;
             const master = ctx.createGain();
-            master.gain.value = 0.14;
+            master.gain.value = 0.15;
             master.connect(ctx.destination);
 
-            const now = ctx.currentTime;
-            const all = [];
+            // ── Generate a 4-bar loop buffer ──
+            const bpm = 132;
+            const beatSec = 60 / bpm;
+            const totalBeats = 16; // 4 bars
+            const duration = totalBeats * beatSec;
+            const len = Math.floor(sr * duration);
+            const buf = ctx.createBuffer(1, len, sr);
+            const ch = buf.getChannelData(0);
 
-            // ── 1. Deep bass drone (pulsing C2) ──
-            const bass = ctx.createOscillator();
-            bass.type = 'sine';
-            bass.frequency.value = 65.41;
-            const bg = ctx.createGain();
-            // 4-bar volume pattern
-            for (let b = 0; b < 4; b++) {
-              const bt = now + b * 0.75;
-              bg.gain.setValueAtTime(0.22, bt);
-              bg.gain.linearRampToValueAtTime(0.06, bt + 0.3);
-              bg.gain.setValueAtTime(0.06, bt + 0.65);
+            // A minor pentatonic [A C D E G A C D]
+            const scale = [110, 130.81, 146.83, 164.81, 196, 220, 261.63, 293.66];
+            // Melody pattern — energetic ascending/descending
+            const melPtn = [0,0,2,2, 4,4,2,0, 3,3,4,4, 2,2,0,0,
+                           0,2,4,3, 2,0,1,3, 4,4,3,2, 0,1,2,0];
+            // Bass pattern — A, F, C, G
+            const bassPtn = [0,0,0,0, 3,3,3,3, 4,4,4,4, 6,6,6,6];
+
+            for (let i = 0; i < len; i++) {
+              const t = i / sr;
+              const beat = Math.floor(t / beatSec) % totalBeats;
+              const bp = (t % beatSec) / beatSec; // 0-1 within beat
+              const hp = (t % (beatSec / 2)) / (beatSec / 2); // half-beat phase
+
+              // ── Kick (sin sweep, beats 0 & 2) ──
+              let kick = 0;
+              if (beat % 4 === 0 || beat % 4 === 2) {
+                const kf = 130 - bp * 300;
+                kick = Math.sin(2 * Math.PI * kf * bp) * Math.exp(-bp * 8) * 0.45;
+              }
+
+              // ── Snare/clap (noise burst, beats 1 & 3) ──
+              let snare = 0;
+              if (beat % 4 === 1 || beat % 4 === 3) {
+                const noise = Math.random() * 2 - 1;
+                snare = noise * Math.exp(-bp * 10) * 0.18;
+              }
+
+              // ── Hi-hat (noise pips on upbeats) ──
+              let hat = 0;
+              const halfIdx = Math.floor(t / (beatSec / 2)) % (totalBeats * 2);
+              if (halfIdx % 2 === 1) {
+                hat = (Math.random() * 2 - 1) * Math.exp(-hp * 12) * 0.08;
+              }
+
+              // ── Bass (sine, changes every beat) ──
+              const bf = scale[bassPtn[beat]] * 0.5;
+              const bassVol = 0.22 * (1 - bp * 0.7);
+              const bass = Math.sin(2 * Math.PI * bf * t) * bassVol;
+
+              // ── Melody (triangle-ish, per beat) ──
+              const mf = scale[melPtn[beat % melPtn.length]] * 1;
+              const melEnv = Math.pow(1 - bp, 6) * 0.1;
+              // Triangle wave approximation
+              const mp = (mf * t) % 1;
+              const mel = (mp < 0.5 ? mp * 4 - 1 : 3 - mp * 4) * melEnv;
+
+              // ── Chord pad (soft, held) ──
+              // Chord changes every 4 beats: Am - F - C - G
+              const bar = Math.floor(beat / 4);
+              let chordSum = 0;
+              // Am: A C E
+              if (bar % 4 === 0) chordSum = Math.sin(2*Math.PI*220*t)*0.02 + Math.sin(2*Math.PI*261.63*t)*0.02 + Math.sin(2*Math.PI*329.63*t)*0.02;
+              // F: F A C
+              else if (bar % 4 === 1) chordSum = Math.sin(2*Math.PI*174.61*t)*0.02 + Math.sin(2*Math.PI*220*t)*0.02 + Math.sin(2*Math.PI*261.63*t)*0.02;
+              // C: C E G
+              else if (bar % 4 === 2) chordSum = Math.sin(2*Math.PI*261.63*t)*0.02 + Math.sin(2*Math.PI*329.63*t)*0.02 + Math.sin(2*Math.PI*392*t)*0.02;
+              // G: G B D
+              else chordSum = Math.sin(2*Math.PI*196*t)*0.02 + Math.sin(2*Math.PI*246.94*t)*0.02 + Math.sin(2*Math.PI*293.66*t)*0.02;
+
+              ch[i] = kick + snare + hat + bass + mel + chordSum;
             }
-            bg.gain.setValueAtTime(0.22, now + 3.0); // repeat
-            bass.connect(bg);
-            bg.connect(master);
-            bass.start(now);
-            all.push(bass);
 
-            // ── 2. Pad chord (soft sawtooth, Cmaj7) ──
-            const pg = ctx.createGain();
-            pg.gain.value = 0.045;
-            for (const f of [261.63, 329.63, 392, 493.88]) {
-              const o = ctx.createOscillator();
-              o.type = 'sawtooth';
-              o.frequency.value = f;
-              o.connect(pg);
-              o.start(now);
-              all.push(o);
-            }
-            pg.connect(master);
-
-            // ── 3. Gentle melody with slow LFO wobble ──
-            const mel = ctx.createOscillator();
-            mel.type = 'triangle';
-            mel.frequency.value = 440;
-            const mg = ctx.createGain();
-            mg.gain.value = 0.08;
-
-            const lfo = ctx.createOscillator();
-            lfo.type = 'sine';
-            lfo.frequency.value = 0.25;
-            const lg = ctx.createGain();
-            lg.gain.value = 25;
-            lfo.connect(lg);
-            lg.connect(mel.frequency);
-            lfo.start(now);
-
-            mel.connect(mg);
-            mg.connect(master);
-            mel.start(now);
-            all.push(mel, lfo);
+            // ── Play the loop ──
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.loop = true;
+            src.connect(master);
+            src.start();
 
             this.playing = true;
-            bgmNodes = { all, master, bass, bg, pg, mel, mg, lfo };
-          } catch (e) { /* bgm error */ console.log('BGM err:', e) }
+            bgmNodes = { master, src };
+          } catch (e) { console.log('BGM:', e) }
         },
 
         _stopAll() {
@@ -474,13 +498,11 @@
             const t = ctx.currentTime + 0.05;
             if (bgmNodes.master) {
               bgmNodes.master.gain.cancelScheduledValues(t);
-              bgmNodes.master.gain.setValueAtTime(bgmNodes.master.gain.value || 0.14, t);
+              bgmNodes.master.gain.setValueAtTime(bgmNodes.master.gain.value || 0.15, t);
               bgmNodes.master.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
             }
-            if (bgmNodes.all) {
-              for (const n of bgmNodes.all) {
-                try { n.stop(t + 0.4); } catch (_) {}
-              }
+            if (bgmNodes.src) {
+              try { bgmNodes.src.stop(t + 0.4); } catch (_) {}
             }
           } catch (_) {}
           bgmNodes = null;
