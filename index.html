@@ -390,129 +390,6 @@
         return audioCtx;
       }
 
-      // ── Background Music ───────────────────────────────
-      let bgmInit = false;
-      const BGM = {
-        ctx: null,
-        master: null,
-        playing: false,
-        beat: 0,
-        nextTime: 0,
-        schedId: null,
-
-        // Chord progression: Cmaj7 | Am7 | Fmaj7 | G7
-        chords: [
-          { root: 261.63, notes: [261.63, 329.63, 392, 493.88] },  // Cmaj7
-          { root: 220,    notes: [220, 261.63, 329.63, 392] },      // Am7
-          { root: 174.61, notes: [174.61, 220, 261.63, 329.63] },   // Fmaj7
-          { root: 196,    notes: [196, 246.94, 293.66, 349.23] }    // G7
-        ],
-
-        bpm: 100,
-
-        _init() {
-          if (bgmInit) return;
-          bgmInit = true;
-          this.ctx = getAudioCtx();
-          this.master = this.ctx.createGain();
-          this.master.gain.value = 0.15;
-          this.master.connect(this.ctx.destination);
-        },
-
-        start() {
-          this._init();
-          if (!this.ctx) return;
-          if (this.playing) return;
-          if (this.ctx.state === 'suspended') this.ctx.resume();
-          // unmute master if it was faded out
-          this.master.gain.cancelScheduledValues(this.ctx.currentTime);
-          this.master.gain.setValueAtTime(0.15, this.ctx.currentTime);
-          this.playing = true;
-          this.beat = 0;
-          this.nextTime = this.ctx.currentTime + 0.1;
-          this._schedule();
-        },
-
-        stop() {
-          this.playing = false;
-          if (this.schedId) { clearTimeout(this.schedId); this.schedId = null; }
-          if (this.master) {
-            const t = this.ctx.currentTime;
-            this.master.gain.cancelScheduledValues(t);
-            this.master.gain.setValueAtTime(this.master.gain.value || 0.15, t);
-            this.master.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-          }
-        },
-
-        _schedule() {
-          if (!this.playing) return;
-          const ctx = this.ctx;
-          const beatSec = 60 / this.bpm;
-          const ahead = 0.6;
-
-          while (this.nextTime < ctx.currentTime + ahead) {
-            const bar = Math.floor(this.beat / 4);
-            const chord = this.chords[bar % this.chords.length];
-            const bi = this.beat % 4;
-            const t = this.nextTime;
-
-            // ── Bass ──
-            const bassFreq = bi === 1 || bi === 3
-              ? chord.root * 1.5
-              : chord.root;
-            const bass = ctx.createOscillator();
-            const bg = ctx.createGain();
-            bass.type = 'triangle';
-            bass.frequency.setValueAtTime(bassFreq, t);
-            bg.gain.setValueAtTime(0, t);
-            bg.gain.linearRampToValueAtTime(0.3, t + 0.02);
-            bg.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 0.85);
-            bass.connect(bg);
-            bg.connect(this.master);
-            bass.start(t);
-            bass.stop(t + beatSec);
-
-            // ── Pad (sustained chord, changes every bar) ──
-            if (bi === 0) {
-              for (const freq of chord.notes) {
-                const osc = ctx.createOscillator();
-                const og = ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(freq, t);
-                og.gain.setValueAtTime(0, t);
-                og.gain.linearRampToValueAtTime(0.06, t + 0.06);
-                og.gain.setValueAtTime(0.06, t + beatSec * 3);
-                og.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 4);
-                osc.connect(og);
-                og.connect(this.master);
-                osc.start(t);
-                osc.stop(t + beatSec * 4);
-              }
-            }
-
-            // ── Arpeggio ──
-            const arpIdx = bi % 4;
-            const arpFreq = chord.notes[arpIdx];
-            const arp = ctx.createOscillator();
-            const ag = ctx.createGain();
-            arp.type = 'triangle';
-            arp.frequency.setValueAtTime(arpFreq, t);
-            ag.gain.setValueAtTime(0, t);
-            ag.gain.linearRampToValueAtTime(0.08, t + 0.015);
-            ag.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 0.55);
-            arp.connect(ag);
-            ag.connect(this.master);
-            arp.start(t);
-            arp.stop(t + beatSec);
-
-            this.beat++;
-            this.nextTime += beatSec;
-          }
-
-          this.schedId = setTimeout(() => this._schedule(), 100);
-        }
-      };
-
       // ── Background Music (Ocean / Beach Vibes) ──────
       let bgmInit = false;
       const BGM = {
@@ -712,6 +589,25 @@
           this.schedId = setTimeout(() => this._schedule(), 100);
         }
       };
+
+      function playShootSound() {
+        try {
+          const ctx = getAudioCtx();
+          if (ctx.state === 'suspended') ctx.resume();
+          const now = ctx.currentTime;
+
+          // Low percussive thump — gives the torpedo launch weight
+          const thump = ctx.createOscillator();
+          const thumpGain = ctx.createGain();
+          thump.type = 'sine';
+          thump.frequency.setValueAtTime(180, now);
+          thump.frequency.exponentialRampToValueAtTime(60, now + 0.06);
+          thumpGain.gain.setValueAtTime(0.15, now);
+          thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+          thump.connect(thumpGain);
+          thumpGain.connect(ctx.destination);
+          thump.start(now);
+          thump.stop(now + 0.06);
 
           // Bright laser sweep — the torpedo firing zip
           const laser = ctx.createOscillator();
