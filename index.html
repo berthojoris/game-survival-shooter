@@ -1434,115 +1434,371 @@
         ctx.restore();
       }
 
-      // ── Seafloor: sand, coral, kelp ────────────────
+      // ── Seafloor ─────────────────────────────────────
       function drawSeafloor() {
-        const floorY = H - 40;
+        const floorY = H - 42;
+        const t = state.time;
 
-        // ── Sandy/rocky terrain ──
+        // ══════════════════════════════════════════════════
+        // Sandy terrain — multi-layer wavy ground
+        // ══════════════════════════════════════════════════
         ctx.save();
+        // Layer 1 — deep background sand
         ctx.beginPath();
         ctx.moveTo(0, H);
-        for (let x = 0; x <= W; x += 8) {
-          const yy = floorY + Math.sin(x * 0.015 + state.time * 0.3) * 10
-                         + Math.sin(x * 0.04 + state.time * 0.1) * 5;
+        for (let x = 0; x <= W; x += 6) {
+          const yy = floorY + 7 + Math.sin(x * 0.01 + t * 0.25) * 12 + Math.sin(x * 0.025 + t * 0.15) * 6;
           ctx.lineTo(x, yy);
         }
-        ctx.lineTo(W, H);
-        ctx.closePath();
-        const sandGrad = ctx.createLinearGradient(0, floorY - 15, 0, H);
-        sandGrad.addColorStop(0, 'rgba(120,95,65,.35)');
-        sandGrad.addColorStop(.5, 'rgba(80,65,45,.25)');
-        sandGrad.addColorStop(1, 'rgba(30,25,18,.15)');
-        ctx.fillStyle = sandGrad;
+        ctx.lineTo(W, H); ctx.closePath();
+        ctx.fillStyle = 'rgba(55, 42, 30, .32)';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(140,115,80,.2)';
-        ctx.lineWidth = 2;
+
+        // Layer 2 — mid sand
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        for (let x = 0; x <= W; x += 6) {
+          const yy = floorY + 2 + Math.sin(x * 0.013 + t * 0.3) * 10 + Math.cos(x * 0.03 + t * 0.12) * 5;
+          ctx.lineTo(x, yy);
+        }
+        ctx.lineTo(W, H); ctx.closePath();
+        const sandMid = ctx.createLinearGradient(0, floorY - 10, 0, H);
+        sandMid.addColorStop(0, 'rgba(95, 75, 50, .38)');
+        sandMid.addColorStop(.6, 'rgba(65, 48, 32, .28)');
+        sandMid.addColorStop(1, 'rgba(25, 20, 15, .12)');
+        ctx.fillStyle = sandMid;
+        ctx.fill();
+
+        // Layer 3 — top sand highlight
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        for (let x = 0; x <= W; x += 6) {
+          const yy = floorY - 3 + Math.sin(x * 0.018 + t * 0.35) * 8 + Math.sin(x * 0.05 + t * 0.08) * 4;
+          ctx.lineTo(x, yy);
+        }
+        ctx.lineTo(W, H); ctx.closePath();
+        const sandTop = ctx.createLinearGradient(0, floorY - 15, 0, H);
+        sandTop.addColorStop(0, 'rgba(125, 100, 70, .32)');
+        sandTop.addColorStop(.5, 'rgba(90, 72, 50, .22)');
+        sandTop.addColorStop(1, 'rgba(35, 25, 15, .08)');
+        ctx.fillStyle = sandTop;
+        ctx.fill();
+
+        // Sand rim glow
+        ctx.strokeStyle = 'rgba(130, 105, 75, .14)';
+        ctx.lineWidth = 2.5;
         ctx.stroke();
         ctx.restore();
 
-        // ── Small rocks ──
+        // Sand grain / pebble dots
         ctx.save();
-        ctx.globalAlpha = .25;
-        const rockPositions = [0.08, 0.2, 0.35, 0.5, 0.65, 0.78, 0.92];
-        for (const rx of rockPositions) {
-          const x = rx * W + Math.sin(rx * 10 + state.time * 0.2) * 3;
-          const bx = (rx * 7.3) % 1;
-          const y = floorY + Math.sin(rx * 20 + state.time * 0.3) * 8 + 2;
-          const rw = 12 + ((rx * 17) % 11);
-          const rh = 6 + ((rx * 13) % 7);
-          ctx.fillStyle = '#3a4a3a';
+        ctx.globalAlpha = .22;
+        for (let g = 0; g < 50; g++) {
+          const gx = ((g * 173 + 40) % W);
+          const gy = floorY - 1 + ((g * 83 + 20) % 28) + Math.sin(gx * 0.02 + t * 0.2) * 3;
+          const gr = 1 + (g % 3);
+          ctx.fillStyle = g % 2 ? '#b8935e' : '#7a5e3a';
           ctx.beginPath();
-          ctx.ellipse(x, y, rw, rh, 0, 0, TAU);
+          ctx.arc(gx, gy, gr, 0, TAU);
           ctx.fill();
         }
         ctx.restore();
 
-        // ── Coral branches (orange / pink / purple) ──
-        const coralColors = ['#ff7b54', '#ff5fb8', '#be6eff', '#ff9f5b'];
-        const coralData = [
-          { x: 0.07, h: 3 }, { x: 0.15, h: 4 }, { x: 0.22, h: 2.5 },
-          { x: 0.40, h: 3.5 }, { x: 0.48, h: 2.8 },
-          { x: 0.60, h: 3.2 }, { x: 0.68, h: 4.5 },
-          { x: 0.82, h: 3 }, { x: 0.90, h: 3.8 }
+        // ══════════════════════════════════════════════════
+        // Large bedrock / rock formations
+        // ══════════════════════════════════════════════════
+        ctx.save();
+        const bigRocks = [
+          { x: 0.12, w: 42, h: 22 },
+          { x: 0.38, w: 55, h: 28 },
+          { x: 0.62, w: 38, h: 20 },
+          { x: 0.84, w: 48, h: 25 },
+          { x: 0.25, w: 32, h: 18 },
+          { x: 0.73, w: 35, h: 15 },
+          { x: 0.06, w: 28, h: 14 }
         ];
-        for (const c of coralData) {
-          const cx = c.x * W;
-          const cy = floorY + Math.sin(c.x * 20 + state.time * 0.3) * 8;
-          const h = c.h * 10;
-          const color = coralColors[Math.floor(c.x * coralColors.length) % coralColors.length];
-          ctx.save();
-          ctx.globalAlpha = .55;
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 3;
-          ctx.lineCap = 'round';
-          // Main stalk
+        for (const r of bigRocks) {
+          const rx = r.x * W + Math.sin(r.x * 13 + t * 0.15) * 2;
+          const ry = floorY - 2 + Math.sin(r.x * 18 + t * 0.2) * 5;
+          // Shadow
+          ctx.fillStyle = 'rgba(15, 18, 16, .35)';
           ctx.beginPath();
-          ctx.moveTo(cx, cy);
-          ctx.quadraticCurveTo(cx + Math.sin(state.time * 0.5 + c.x * 10) * 4, cy - h * 0.6, cx, cy - h);
-          ctx.stroke();
-          // Branches
-          for (let b = 1; b <= 3; b++) {
-            const bt = cy - h * (b * 0.25);
-            const sway = Math.sin(state.time * 0.7 + c.x * 8 + b) * 5;
+          ctx.ellipse(rx + 3, ry + 3, r.w, r.h, 0, 0, TAU);
+          ctx.fill();
+          // Main rock
+          const rockGrad = ctx.createRadialGradient(rx - r.w*.2, ry - r.h*.3, r.w*.1, rx, ry, r.w);
+          rockGrad.addColorStop(0, '#5a6d5e');
+          rockGrad.addColorStop(.6, '#36483a');
+          rockGrad.addColorStop(1, '#1e2b21');
+          ctx.fillStyle = rockGrad;
+          ctx.beginPath();
+          ctx.ellipse(rx, ry, r.w, r.h, 0, 0, TAU);
+          ctx.fill();
+          // Moss / algae on top
+          ctx.fillStyle = 'rgba(40, 90, 50, .3)';
+          ctx.beginPath();
+          ctx.ellipse(rx, ry - r.h * 0.4, r.w * 0.7, r.h * 0.3, 0, Math.PI, 0);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // ══════════════════════════════════════════════════
+        // Kelp forest — wide ribbon-like seaweed
+        // ══════════════════════════════════════════════════
+        ctx.save();
+        const kelpPalette = ['#14522d', '#1a6b38', '#238545', '#1c7a3a'];
+        for (let k = 0; k < 15; k++) {
+          const kx = ((k * 121 + 35) % (W + 60)) - 30;
+          const ky = floorY + Math.sin(kx * 0.008 + t * 0.25) * 5;
+          const h = 55 + ((k * 23) % 38);
+          const w = 2.5 + (k % 3) * 1.5;
+          const color = kelpPalette[k % kelpPalette.length];
+
+          ctx.fillStyle = color;
+          ctx.globalAlpha = .4;
+
+          // Draw kelp as filled ribbon
+          for (let seg = 0; seg < 12; seg++) {
+            const st = seg / 12;
+            const stNext = (seg + 1) / 12;
+            const phase = k * 1.7 + st * 4;
+            const sway1 = Math.sin(t * 0.6 + phase) * (5 + st * 14) + Math.sin(t * 1.2 + phase * 1.7) * (3 + st * 6);
+            const sway2 = Math.sin(t * 0.6 + phase + 0.5) * (5 + stNext * 14) + Math.sin(t * 1.2 + phase * 1.7 + 0.5) * (3 + stNext * 6);
+
+            const y1 = ky - h * st;
+            const y2 = ky - h * stNext;
+            const wEff = w * (1 - st * 0.6);
+
             ctx.beginPath();
-            ctx.moveTo(cx + sway * 0.3, bt);
-            ctx.quadraticCurveTo(cx + sway + 8 + b * 3, bt - 6, cx + sway + 12 + b * 4, bt - 10);
+            ctx.moveTo(kx + sway1 - wEff, y1);
+            ctx.lineTo(kx + sway1 + wEff, y1);
+            ctx.lineTo(kx + sway2 + wEff * 0.85, y2);
+            ctx.lineTo(kx + sway2 - wEff * 0.85, y2);
+            ctx.closePath();
+            ctx.fill();
+
+            // Central vein highlight
+            ctx.strokeStyle = 'rgba(100, 255, 140, .1)';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(kx + sway1, y1);
+            ctx.lineTo(kx + sway2, y2);
             ctx.stroke();
           }
-          // Tip glow
-          ctx.fillStyle = color;
-          ctx.globalAlpha = .7;
+        }
+        ctx.restore();
+
+        // ══════════════════════════════════════════════════
+        // Branching Coral — finger-like with glow tips
+        // ══════════════════════════════════════════════════
+        ctx.save();
+        const branchCorals = [
+          { x: 0.09, h: 45, color: '#ff7744' },
+          { x: 0.28, h: 38, color: '#ff5599' },
+          { x: 0.52, h: 52, color: '#ff8844' },
+          { x: 0.71, h: 42, color: '#ff6699' },
+          { x: 0.88, h: 48, color: '#ff7744' },
+          { x: 0.95, h: 35, color: '#ff5599' },
+        ];
+        for (const c of branchCorals) {
+          const cx = c.x * W;
+          const cy = floorY + Math.sin(c.x * 15 + t * 0.25) * 6;
+          drawBranchCoral(cx, cy, c.h, c.color, t, c.x);
+        }
+        ctx.restore();
+
+        // ══════════════════════════════════════════════════
+        // Brain Coral — dome shapes
+        // ══════════════════════════════════════════════════
+        ctx.save();
+        const brainCorals = [
+          { x: 0.19, r: 16, color: '#c86ef0' },
+          { x: 0.44, r: 20, color: '#8e66ff' },
+          { x: 0.66, r: 14, color: '#d08cf0' },
+        ];
+        for (const bc of brainCorals) {
+          const bx = bc.x * W;
+          const by = floorY - 5 + Math.sin(bc.x * 12 + t * 0.3) * 4;
+          // Shadow
+          ctx.fillStyle = 'rgba(20, 10, 30, .3)';
           ctx.beginPath();
-          ctx.arc(cx + Math.sin(state.time * 0.5 + c.x * 10) * 3, cy - h, 3, 0, TAU);
+          ctx.ellipse(bx + 2, by + 2, bc.r, bc.r * 0.65, 0, Math.PI, 0);
           ctx.fill();
-          ctx.restore();
+          // Main dome
+          const brainGrad = ctx.createRadialGradient(bx - bc.r*.2, by - bc.r*.4, bc.r*.05, bx, by, bc.r);
+          brainGrad.addColorStop(0, bc.color);
+          brainGrad.addColorStop(.7, 'rgba(80, 30, 120, .6)');
+          brainGrad.addColorStop(1, 'rgba(40, 15, 60, .3)');
+          ctx.fillStyle = brainGrad;
+          ctx.beginPath();
+          ctx.ellipse(bx, by, bc.r, bc.r * 0.65, 0, Math.PI, 0);
+          ctx.fill();
+          // Groove lines
+          ctx.strokeStyle = 'rgba(255,255,255,.12)';
+          ctx.lineWidth = 1;
+          for (let g = -bc.r + 6; g < bc.r; g += 8) {
+            const gy = by - Math.sqrt(Math.max(0, 1 - (g / bc.r) ** 2)) * bc.r * 0.65;
+            ctx.beginPath();
+            ctx.moveTo(bx + g, by);
+            ctx.quadraticCurveTo(bx + g, gy - 2, bx + g - 3, gy - 6);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+
+        // ══════════════════════════════════════════════════
+        // Tube/Sea Fan Coral
+        // ══════════════════════════════════════════════════
+        ctx.save();
+        const fanCorals = [
+          { x: 0.35, h: 35, color: '#4de8c4' },
+          { x: 0.57, h: 30, color: '#3cb8d4' },
+          { x: 0.82, h: 40, color: '#5ef0d0' },
+        ];
+        for (const fc of fanCorals) {
+          const fx = fc.x * W;
+          const fy = floorY + Math.sin(fc.x * 10 + t * 0.35) * 6;
+          const swayF = Math.sin(t * 0.4 + fc.x * 8) * 4;
+          // Fan shape
+          ctx.fillStyle = fc.color;
+          ctx.globalAlpha = .4;
+          ctx.beginPath();
+          ctx.moveTo(fx, fy);
+          ctx.bezierCurveTo(fx + swayF - fc.h*.4, fy - fc.h*.3, fx + swayF - fc.h*.6, fy - fc.h*.9, fx + swayF - 5, fy - fc.h);
+          ctx.bezierCurveTo(fx + swayF, fy - fc.h*.95, fx + swayF, fy - fc.h*.95, fx + swayF + 5, fy - fc.h);
+          ctx.bezierCurveTo(fx + swayF + fc.h*.6, fy - fc.h*.9, fx + swayF + fc.h*.4, fy - fc.h*.3, fx + swayF, fy);
+          ctx.closePath();
+          ctx.fill();
+          // Skeleton lines
+          ctx.strokeStyle = 'rgba(255,255,255,.18)';
+          ctx.lineWidth = 1;
+          for (let l = -3; l <= 3; l++) {
+            ctx.beginPath();
+            ctx.moveTo(fx, fy);
+            ctx.quadraticCurveTo(fx + swayF + l * 7, fy - fc.h*.5, fx + swayF + l * 8, fy - fc.h);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+
+        // ══════════════════════════════════════════════════
+        // Sea Anemones
+        // ══════════════════════════════════════════════════
+        ctx.save();
+        const anemones = [
+          { x: 0.17, r: 10, color: '#ff7baa' },
+          { x: 0.48, r: 8, color: '#ff8c55' },
+          { x: 0.76, r: 11, color: '#ff6e9f' },
+        ];
+        for (const a of anemones) {
+          const ax = a.x * W;
+          const ay = floorY - 2 + Math.sin(a.x * 8 + t * 0.3) * 3;
+          // Base
+          ctx.fillStyle = 'rgba(40, 25, 35, .45)';
+          ctx.beginPath();
+          ctx.ellipse(ax, ay, a.r * 0.85, a.r * 0.4, 0, 0, TAU);
+          ctx.fill();
+          // Tentacles
+          for (let tn = 0; tn < 14; tn++) {
+            const ta = (tn / 14) * TAU + t * 0.2;
+            const tr = a.r * 0.85;
+            const sway = Math.sin(t * 1.5 + tn * 0.8) * 4;
+            ctx.strokeStyle = a.color;
+            ctx.globalAlpha = .5;
+            ctx.lineWidth = 1.8;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(ax + Math.cos(ta) * tr * 0.3, ay);
+            ctx.quadraticCurveTo(ax + Math.cos(ta) * tr * 0.7 + sway, ay - 5,
+                                 ax + Math.cos(ta) * tr * 1.0 + sway, ay - 8);
+            ctx.stroke();
+            // Tip dot
+            ctx.fillStyle = 'rgba(255, 255, 240, .6)';
+            ctx.beginPath();
+            ctx.arc(ax + Math.cos(ta) * tr * 1.0 + sway, ay - 8, 1.5, 0, TAU);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+
+        // ══════════════════════════════════════════════════
+        // Floating particles / marine snow
+        // ══════════════════════════════════════════════════
+        ctx.save();
+        ctx.globalAlpha = .15;
+        for (let p = 0; p < 25; p++) {
+          const px = ((p * 191 + 70) % W);
+          const py = floorY - 5 - ((p * 87 + 15) % 35) + Math.sin(t * 0.4 + p * 0.7) * 4;
+          ctx.fillStyle = p % 3 ? '#d4e8d0' : '#ffe8cc';
+          ctx.beginPath();
+          ctx.arc(px, py, 0.8 + (p % 2) * 0.5, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // ── Helper: draw branching finger coral ──
+      function drawBranchCoral(cx, cy, h, color, t, seed) {
+        ctx.save();
+        ctx.globalAlpha = .58;
+        // Main stalk
+        const s = Math.sin(t * 0.45 + seed * 10);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.bezierCurveTo(cx + s * 3, cy - h * 0.3, cx - s * 2, cy - h * 0.7, cx + s * 2, cy - h);
+        ctx.stroke();
+
+        // Branches
+        const branches = [
+          { y: 0.25, off: 12, curve: 18 },
+          { y: 0.45, off: -10, curve: -15 },
+          { y: 0.60, off: 14, curve: 20 },
+          { y: 0.75, off: -8, curve: -12 },
+        ];
+        for (const br of branches) {
+          const by = cy - h * br.y;
+          const bsway = Math.sin(t * 0.6 + seed * 7 + br.y * 3) * 3;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(cx + bsway * 0.3, by);
+          ctx.bezierCurveTo(
+            cx + bsway + br.off * 0.5, by - 5,
+            cx + bsway + br.off * 0.8, by - 12,
+            cx + bsway + br.off + br.curve * 0.3, by - 16
+          );
+          ctx.stroke();
+          // Sub-branch
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(cx + bsway + br.off * 0.5, by - 4);
+          ctx.quadraticCurveTo(
+            cx + bsway + br.off * 0.3 - 6, by - 8,
+            cx + bsway - 8, by - 12
+          );
+          ctx.stroke();
         }
 
-        // ── Kelp / seaweed (tall green swaying ribbons) ──
-        const kelpColors = ['#2d8a4e', '#3aa85e', '#1f7a3d', '#4cb86a'];
-        for (let k = 0; k < 12; k++) {
-          const kx = ((k * 137 + 50) % (W + 40)) - 20;
-          const ky = floorY + Math.sin(kx * 0.01 + state.time * 0.3) * 7;
-          const height = 35 + ((k * 17) % 25);
-          const color = kelpColors[k % kelpColors.length];
-          ctx.save();
-          ctx.globalAlpha = .35;
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 4 - (k % 2) * 1.5;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(kx, ky);
-          for (let s = 0; s <= 8; s++) {
-            const st = s / 8;
-            const sway = Math.sin(state.time * (0.8 + k * 0.06) + kx * 0.008 + st * 3) * (8 + st * 10);
-            const sx = kx + sway;
-            const sy = ky - height * st;
-            if (s === 0) ctx.moveTo(sx, sy);
-            else ctx.lineTo(sx, sy);
-          }
-          ctx.stroke();
-          ctx.restore();
-        }
+        // Glow tip dots
+        ctx.fillStyle = 'rgba(255, 255, 220, .65)';
+        const tipX = cx + s * 2;
+        const tipY = cy - h;
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, 3.5, 0, TAU);
+        ctx.fill();
+        // Soft outer glow
+        const glow = ctx.createRadialGradient(tipX, tipY, 1, tipX, tipY, 10);
+        glow.addColorStop(0, color);
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = .22;
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, 10, 0, TAU);
+        ctx.fill();
+
+        ctx.restore();
       }
 
       function drawTorpedo(t) {
