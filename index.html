@@ -390,201 +390,122 @@
         return audioCtx;
       }
 
-      // ── Background Music (Ocean / Beach Vibes) ──────
+      // ── Background Music ───────────────────────────────
       let bgmInit = false;
       const BGM = {
         ctx: null,
         master: null,
         playing: false,
+        schedId: null,
+
+        bpm: 80,
+
+        // Pentatonic: C4 D4 E4 G4 A4 C5 D5 E5
+        scale: [261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25],
+        mel: [0,2,4,3, 2,0,1,3, 4,4,3,2, 0,1,2,0],
+        bassRoots: [130.81, 146.83, 164.81, 196],
+
         beat: 0,
         nextTime: 0,
-        schedId: null,
-        waveSchedId: null,
-        waveNodes: [],
-
-        // Pentatonic scale — bright beachy / tropical feel
-        scale: [261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25],
-        // Melody pattern (indices into scale)
-        melody: [0,2,4,3, 2,0,1,3, 4,4,3,2, 0,1,2,0, 4,4,5,4, 3,2,1,0, 2,3,4,5, 4,3,2,0],
-        // Bass pattern (frequencies, changes every 4 beats)
-        bassLine: [130.81, 146.83, 164.81, 196, 174.61, 164.81, 146.83, 130.81],
-
-        bpm: 75,
 
         _init() {
           if (bgmInit) return;
           bgmInit = true;
-          this.ctx = getAudioCtx();
-          this.master = this.ctx.createGain();
-          this.master.gain.value = 0.12;
-          this.master.connect(this.ctx.destination);
-          this._setupWaves();
-        },
-
-        // ── Ocean wave ambience (continuous filtered noise) ──
-        _setupWaves() {
-          const ctx = this.ctx;
-          // Build a few seconds of noise
-          const len = ctx.sampleRate * 3;
-          const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-          const ch = buf.getChannelData(0);
-          let last = 0;
-          for (let i = 0; i < len; i++) {
-            last = last * 0.97 + (Math.random() * 2 - 1) * 0.03;
-            ch[i] = last * 3; // brown-ish noise
-          }
-
-          // Two wave layers with different filter & LFO phase
-          for (let layer = 0; layer < 2; layer++) {
-            const src = ctx.createBufferSource();
-            src.buffer = buf;
-            src.loop = true;
-
-            const filter = ctx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 220 + layer * 180;
-            filter.Q.value = 0.6;
-
-            const gain = ctx.createGain();
-            gain.gain.value = 0;
-
-            src.connect(filter);
-            filter.connect(gain);
-            gain.connect(this.master);
-            src.start();
-
-            this.waveNodes.push({ gain, phase: layer * Math.PI * 0.6 });
-          }
-        },
-
-        _modulateWaves() {
-          if (!this.playing) return;
-          const ctx = this.ctx;
-          const now = ctx.currentTime;
-          const period = 7; // 7-second wave cycle
-
-          for (const w of this.waveNodes) {
-            const pos = ((now + w.phase) % period) / period;
-            // Slow rise, faster fall — mimics a wave
-            let swell;
-            if (pos < 0.55) {
-              swell = Math.sin((pos / 0.55) * Math.PI * 0.5); // ease-in swell
-            } else {
-              swell = Math.cos(((pos - 0.55) / 0.45) * Math.PI * 0.5); // ease-out fall
-            }
-            swell = Math.pow(swell, 0.6) * 0.15;
-            w.gain.gain.setValueAtTime(swell, now);
-          }
-
-          this.waveSchedId = setTimeout(() => this._modulateWaves(), 80);
+          try {
+            this.ctx = getAudioCtx();
+            this.master = this.ctx.createGain();
+            this.master.gain.value = 0.15;
+            this.master.connect(this.ctx.destination);
+          } catch (e) { /* audio unavailable */ }
         },
 
         start() {
-          this._init();
+          if (!this.ctx) this._init();
           if (!this.ctx || this.playing) return;
-          if (this.ctx.state === 'suspended') this.ctx.resume();
-
-          this.master.gain.cancelScheduledValues(this.ctx.currentTime);
-          this.master.gain.setValueAtTime(0.12, this.ctx.currentTime);
-
-          this.playing = true;
-          this.beat = 0;
-          this.nextTime = this.ctx.currentTime + 0.1;
-
-          this._modulateWaves();
-          this._schedule();
+          try {
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            this.master.gain.cancelScheduledValues(this.ctx.currentTime);
+            this.master.gain.setValueAtTime(0.15, this.ctx.currentTime);
+            this.playing = true;
+            this.beat = 0;
+            this.nextTime = this.ctx.currentTime + 0.05;
+            this._schedule();
+          } catch (e) { /* bgm error */ }
         },
 
         stop() {
           this.playing = false;
           if (this.schedId) { clearTimeout(this.schedId); this.schedId = null; }
-          if (this.waveSchedId) { clearTimeout(this.waveSchedId); this.waveSchedId = null; }
-          for (const w of this.waveNodes) {
-            w.gain.gain.cancelScheduledValues(this.ctx.currentTime);
-            w.gain.gain.setValueAtTime(0, this.ctx.currentTime);
-          }
           if (this.master) {
-            const t = this.ctx.currentTime;
-            this.master.gain.cancelScheduledValues(t);
-            this.master.gain.setValueAtTime(this.master.gain.value || 0.12, t);
-            this.master.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+            try {
+              const t = this.ctx.currentTime;
+              this.master.gain.cancelScheduledValues(t);
+              this.master.gain.setValueAtTime(this.master.gain.value || 0.15, t);
+              this.master.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+            } catch (_) {}
           }
         },
 
         _schedule() {
           if (!this.playing) return;
-          const ctx = this.ctx;
-          const beatSec = 60 / this.bpm;
-          const ahead = 0.6;
+          try {
+            const ctx = this.ctx;
+            const beatSec = 60 / this.bpm;
+            const ahead = 0.5;
 
-          while (this.nextTime < ctx.currentTime + ahead) {
-            const t = this.nextTime;
-            const melIdx = this.beat % this.melody.length;
-            const bar = Math.floor(this.beat / 4);
+            while (this.nextTime < ctx.currentTime + ahead) {
+              const t = this.nextTime;
+              const bi = this.beat % 4;
+              const bar = Math.floor(this.beat / 4);
 
-            // ── Marimba-like melody (warm triangle, quick decay) ──
-            const freq = this.scale[this.melody[melIdx]];
-            const marimba = ctx.createOscillator();
-            const mg = ctx.createGain();
-            marimba.type = 'triangle';
-            marimba.frequency.setValueAtTime(freq, t);
-            mg.gain.setValueAtTime(0, t);
-            mg.gain.linearRampToValueAtTime(0.1, t + 0.012);
-            mg.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 0.45);
-            marimba.connect(mg);
-            mg.connect(this.master);
-            marimba.start(t);
-            marimba.stop(t + beatSec);
+              // Bass — sine, root changes every 4 beats
+              const bf = this.bassRoots[bar % this.bassRoots.length];
+              const bass = ctx.createOscillator();
+              const bg = ctx.createGain();
+              bass.type = 'sine';
+              bass.frequency.setValueAtTime(bf, t);
+              bg.gain.setValueAtTime(0, t);
+              bg.gain.linearRampToValueAtTime(0.2, t + 0.02);
+              bg.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 0.85);
+              bass.connect(bg);
+              bg.connect(this.master);
+              bass.start(t);
+              bass.stop(t + beatSec);
 
-            // Gentle overtone for warmth
-            const warm = ctx.createOscillator();
-            const wg = ctx.createGain();
-            warm.type = 'sine';
-            warm.frequency.setValueAtTime(freq * 0.5, t);
-            wg.gain.setValueAtTime(0, t);
-            wg.gain.linearRampToValueAtTime(0.04, t + 0.02);
-            wg.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 0.35);
-            warm.connect(wg);
-            wg.connect(this.master);
-            warm.start(t);
-            warm.stop(t + beatSec);
+              // Melody — triangle, quick pluck
+              const mf = this.scale[this.mel[this.beat % this.mel.length]];
+              const mel = ctx.createOscillator();
+              const mg = ctx.createGain();
+              mel.type = 'triangle';
+              mel.frequency.setValueAtTime(mf, t);
+              mg.gain.setValueAtTime(0, t);
+              mg.gain.linearRampToValueAtTime(0.08, t + 0.01);
+              mg.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 0.35);
+              mel.connect(mg);
+              mg.connect(this.master);
+              mel.start(t);
+              mel.stop(t + beatSec);
 
-            // ── Bass (sine, deep, every beat) ──
-            const bassFreq = this.bassLine[bar % this.bassLine.length];
-            const bass = ctx.createOscillator();
-            const bg = ctx.createGain();
-            bass.type = 'sine';
-            bass.frequency.setValueAtTime(bassFreq, t);
-            bg.gain.setValueAtTime(0, t);
-            bg.gain.linearRampToValueAtTime(0.18, t + 0.02);
-            bg.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 0.85);
-            bass.connect(bg);
-            bg.connect(this.master);
-            bass.start(t);
-            bass.stop(t + beatSec);
-
-            // ── Soft shaker (noise burst on offbeats) ──
-            if (this.beat % 2 === 1) {
-              const shLen = Math.floor(ctx.sampleRate * 0.025);
-              const shBuf = ctx.createBuffer(1, shLen, ctx.sampleRate);
-              const shCh = shBuf.getChannelData(0);
-              for (let i = 0; i < shLen; i++) {
-                shCh[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / shLen, 5);
+              // Shaker — noise on offbeats
+              if (bi === 1 || bi === 3) {
+                const shLen = Math.floor(ctx.sampleRate * 0.02);
+                const shBuf = ctx.createBuffer(1, shLen, ctx.sampleRate);
+                const d = shBuf.getChannelData(0);
+                for (let i = 0; i < shLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / shLen, 4);
+                const sh = ctx.createBufferSource();
+                sh.buffer = shBuf;
+                const sg = ctx.createGain();
+                sg.gain.setValueAtTime(0.05, t);
+                sg.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+                sh.connect(sg);
+                sg.connect(this.master);
+                sh.start(t);
               }
-              const sh = ctx.createBufferSource();
-              sh.buffer = shBuf;
-              const sg = ctx.createGain();
-              sg.gain.setValueAtTime(0.04, t);
-              sg.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
-              sh.connect(sg);
-              sg.connect(this.master);
-              sh.start(t);
-              sh.stop(t + 0.03);
-            }
 
-            this.beat++;
-            this.nextTime += beatSec;
-          }
+              this.beat++;
+              this.nextTime += beatSec;
+            }
+          } catch (_) { /* schedule error */ }
 
           this.schedId = setTimeout(() => this._schedule(), 100);
         }
