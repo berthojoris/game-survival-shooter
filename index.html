@@ -390,124 +390,106 @@
         return audioCtx;
       }
 
-      // ── Background Music ───────────────────────────────
-      let bgmInit = false;
+      // ── Background Music (Continuous — no scheduling) ──
+      let bgmNodes = null;
       const BGM = {
-        ctx: null,
-        master: null,
         playing: false,
-        schedId: null,
-
-        bpm: 80,
-
-        // Pentatonic: C4 D4 E4 G4 A4 C5 D5 E5
-        scale: [261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25],
-        mel: [0,2,4,3, 2,0,1,3, 4,4,3,2, 0,1,2,0],
-        bassRoots: [130.81, 146.83, 164.81, 196],
-
-        beat: 0,
-        nextTime: 0,
-
-        _init() {
-          if (bgmInit) return;
-          bgmInit = true;
-          try {
-            this.ctx = getAudioCtx();
-            this.master = this.ctx.createGain();
-            this.master.gain.value = 0.15;
-            this.master.connect(this.ctx.destination);
-          } catch (e) { /* audio unavailable */ }
-        },
 
         start() {
-          if (!this.ctx) this._init();
-          if (!this.ctx || this.playing) return;
+          if (this.playing) return;
+          // Stop any leftover nodes from a previous run
+          if (bgmNodes) this._stopAll();
+
           try {
-            if (this.ctx.state === 'suspended') this.ctx.resume();
-            this.master.gain.cancelScheduledValues(this.ctx.currentTime);
-            this.master.gain.setValueAtTime(0.15, this.ctx.currentTime);
+            const ctx = getAudioCtx();
+            if (ctx.state === 'suspended') ctx.resume();
+
+            const master = ctx.createGain();
+            master.gain.value = 0.14;
+            master.connect(ctx.destination);
+
+            const now = ctx.currentTime;
+            const all = [];
+
+            // ── 1. Deep bass drone (pulsing C2) ──
+            const bass = ctx.createOscillator();
+            bass.type = 'sine';
+            bass.frequency.value = 65.41;
+            const bg = ctx.createGain();
+            // 4-bar volume pattern
+            for (let b = 0; b < 4; b++) {
+              const bt = now + b * 0.75;
+              bg.gain.setValueAtTime(0.22, bt);
+              bg.gain.linearRampToValueAtTime(0.06, bt + 0.3);
+              bg.gain.setValueAtTime(0.06, bt + 0.65);
+            }
+            bg.gain.setValueAtTime(0.22, now + 3.0); // repeat
+            bass.connect(bg);
+            bg.connect(master);
+            bass.start(now);
+            all.push(bass);
+
+            // ── 2. Pad chord (soft sawtooth, Cmaj7) ──
+            const pg = ctx.createGain();
+            pg.gain.value = 0.045;
+            for (const f of [261.63, 329.63, 392, 493.88]) {
+              const o = ctx.createOscillator();
+              o.type = 'sawtooth';
+              o.frequency.value = f;
+              o.connect(pg);
+              o.start(now);
+              all.push(o);
+            }
+            pg.connect(master);
+
+            // ── 3. Gentle melody with slow LFO wobble ──
+            const mel = ctx.createOscillator();
+            mel.type = 'triangle';
+            mel.frequency.value = 440;
+            const mg = ctx.createGain();
+            mg.gain.value = 0.08;
+
+            const lfo = ctx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.25;
+            const lg = ctx.createGain();
+            lg.gain.value = 25;
+            lfo.connect(lg);
+            lg.connect(mel.frequency);
+            lfo.start(now);
+
+            mel.connect(mg);
+            mg.connect(master);
+            mel.start(now);
+            all.push(mel, lfo);
+
             this.playing = true;
-            this.beat = 0;
-            this.nextTime = this.ctx.currentTime + 0.05;
-            this._schedule();
-          } catch (e) { /* bgm error */ }
+            bgmNodes = { all, master, bass, bg, pg, mel, mg, lfo };
+          } catch (e) { /* bgm error */ console.log('BGM err:', e) }
+        },
+
+        _stopAll() {
+          try {
+            const ctx = getAudioCtx();
+            const t = ctx.currentTime + 0.05;
+            if (bgmNodes.master) {
+              bgmNodes.master.gain.cancelScheduledValues(t);
+              bgmNodes.master.gain.setValueAtTime(bgmNodes.master.gain.value || 0.14, t);
+              bgmNodes.master.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+            }
+            if (bgmNodes.all) {
+              for (const n of bgmNodes.all) {
+                try { n.stop(t + 0.4); } catch (_) {}
+              }
+            }
+          } catch (_) {}
+          bgmNodes = null;
         },
 
         stop() {
+          if (!this.playing || !bgmNodes) return;
+          this._stopAll();
           this.playing = false;
-          if (this.schedId) { clearTimeout(this.schedId); this.schedId = null; }
-          if (this.master) {
-            try {
-              const t = this.ctx.currentTime;
-              this.master.gain.cancelScheduledValues(t);
-              this.master.gain.setValueAtTime(this.master.gain.value || 0.15, t);
-              this.master.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-            } catch (_) {}
-          }
-        },
-
-        _schedule() {
-          if (!this.playing) return;
-          try {
-            const ctx = this.ctx;
-            const beatSec = 60 / this.bpm;
-            const ahead = 0.5;
-
-            while (this.nextTime < ctx.currentTime + ahead) {
-              const t = this.nextTime;
-              const bi = this.beat % 4;
-              const bar = Math.floor(this.beat / 4);
-
-              // Bass — sine, root changes every 4 beats
-              const bf = this.bassRoots[bar % this.bassRoots.length];
-              const bass = ctx.createOscillator();
-              const bg = ctx.createGain();
-              bass.type = 'sine';
-              bass.frequency.setValueAtTime(bf, t);
-              bg.gain.setValueAtTime(0, t);
-              bg.gain.linearRampToValueAtTime(0.2, t + 0.02);
-              bg.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 0.85);
-              bass.connect(bg);
-              bg.connect(this.master);
-              bass.start(t);
-              bass.stop(t + beatSec);
-
-              // Melody — triangle, quick pluck
-              const mf = this.scale[this.mel[this.beat % this.mel.length]];
-              const mel = ctx.createOscillator();
-              const mg = ctx.createGain();
-              mel.type = 'triangle';
-              mel.frequency.setValueAtTime(mf, t);
-              mg.gain.setValueAtTime(0, t);
-              mg.gain.linearRampToValueAtTime(0.08, t + 0.01);
-              mg.gain.exponentialRampToValueAtTime(0.001, t + beatSec * 0.35);
-              mel.connect(mg);
-              mg.connect(this.master);
-              mel.start(t);
-              mel.stop(t + beatSec);
-
-              // Shaker — noise on offbeats
-              if (bi === 1 || bi === 3) {
-                const shLen = Math.floor(ctx.sampleRate * 0.02);
-                const shBuf = ctx.createBuffer(1, shLen, ctx.sampleRate);
-                const d = shBuf.getChannelData(0);
-                for (let i = 0; i < shLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / shLen, 4);
-                const sh = ctx.createBufferSource();
-                sh.buffer = shBuf;
-                const sg = ctx.createGain();
-                sg.gain.setValueAtTime(0.05, t);
-                sg.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
-                sh.connect(sg);
-                sg.connect(this.master);
-                sh.start(t);
-              }
-
-              this.beat++;
-              this.nextTime += beatSec;
-            }
-          } catch (_) { /* schedule error */ }
-
-          this.schedId = setTimeout(() => this._schedule(), 100);
         }
       };
 
