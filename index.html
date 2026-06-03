@@ -610,6 +610,20 @@
       const floaters = [];
       const bubbles = [];
 
+      let submarine = {
+        active: false,
+        x: 0,
+        y: 0,
+        vx: 0,
+        dir: 1,
+        cooldown: rand(4, 14)
+      };
+
+      function initSubmarine() {
+        submarine.active = false;
+        submarine.cooldown = rand(4, 14);
+      }
+
       const enemyData = {
         piranha: { r: 13, hp: 24, speed: 185, damage: 8, score: 25 },
         shark: { r: 29, hp: 88, speed: 115, damage: 18, score: 75 },
@@ -666,6 +680,7 @@
         if (!state.running) {
           player.x = W * 0.5;
           player.y = H * 0.56;
+          initSubmarine();
         }
       }
 
@@ -711,6 +726,7 @@
         powerups.length = 0;
         particles.length = 0;
         floaters.length = 0;
+        initSubmarine();
         Object.assign(state, {
           running: true,
           paused: false,
@@ -1307,6 +1323,25 @@
         }
       }
 
+      function updateSubmarine(dt) {
+        if (!submarine.active) {
+          submarine.cooldown -= dt;
+          if (submarine.cooldown <= 0) {
+            submarine.active = true;
+            submarine.dir = Math.random() < 0.5 ? 1 : -1;
+            submarine.x = submarine.dir > 0 ? -160 : W + 160;
+            submarine.y = rand(H * 0.42, H * 0.72);
+            submarine.vx = submarine.dir * rand(26, 54);
+          }
+          return;
+        }
+        submarine.x += submarine.vx * dt;
+        if ((submarine.dir > 0 && submarine.x > W + 180) || (submarine.dir < 0 && submarine.x < -180)) {
+          submarine.active = false;
+          submarine.cooldown = rand(5, 18);
+        }
+      }
+
       function checkWave(dt) {
         if (state.waveActive && state.toSpawn <= 0 && enemies.length === 0) {
           state.waveActive = false;
@@ -1327,6 +1362,7 @@
         state.time += dt;
         state.shake = Math.max(0, state.shake - dt * 28);
         updateBubbles(dt);
+        updateSubmarine(dt);
         updatePlayer(dt);
         spawnWaveEnemies(dt);
         updateEnemies(dt);
@@ -1413,12 +1449,141 @@
 
         drawBubbles();
         drawSeafloor();
+        drawSubmarine();
 
         const vignette = ctx.createRadialGradient(W * .5, H * .5, Math.min(W, H) * .25, W * .5, H * .5, Math.max(W, H) * .78);
         vignette.addColorStop(0, 'rgba(0,0,0,0)');
         vignette.addColorStop(1, 'rgba(0,0,0,.48)');
         ctx.fillStyle = vignette;
         ctx.fillRect(0, 0, W, H);
+      }
+
+      function drawSubmarine() {
+        if (!submarine.active) return;
+        const s = submarine;
+        const bodyLen = Math.min(170, W * 0.14);
+        const bodyH = bodyLen * 0.24;
+
+        ctx.save();
+        ctx.globalAlpha = .32;
+        ctx.translate(s.x, s.y);
+        ctx.scale(s.dir, 1);
+
+        // Main hull
+        const hullGrad = ctx.createLinearGradient(0, -bodyH, 0, bodyH);
+        hullGrad.addColorStop(0, '#0d2338');
+        hullGrad.addColorStop(.45, '#081a2c');
+        hullGrad.addColorStop(1, '#020d16');
+        ctx.fillStyle = hullGrad;
+        ctx.beginPath();
+        ctx.moveTo(bodyLen * .44, 0);
+        ctx.ellipse(0, 0, bodyLen * .42, bodyH, 0, 0, TAU);
+        ctx.fill();
+
+        // Hull edge highlight
+        ctx.strokeStyle = 'rgba(40, 80, 120, .18)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, bodyLen * .42, bodyH, 0, 0, TAU);
+        ctx.stroke();
+
+        // Nose cone
+        ctx.fillStyle = '#0a1a2a';
+        ctx.beginPath();
+        ctx.moveTo(bodyLen * .32, -bodyH * .55);
+        ctx.quadraticCurveTo(bodyLen * .46, 0, bodyLen * .32, bodyH * .55);
+        ctx.quadraticCurveTo(bodyLen * .25, 0, bodyLen * .32, -bodyH * .55);
+        ctx.fill();
+
+        // Conning tower
+        const towerX = bodyLen * .08;
+        const towerW = bodyLen * .13;
+        const towerH = bodyH * 1.5;
+        const twrGrad = ctx.createLinearGradient(0, -bodyH - towerH, 0, -bodyH);
+        twrGrad.addColorStop(0, '#0d2035');
+        twrGrad.addColorStop(1, '#09192a');
+        ctx.fillStyle = twrGrad;
+        ctx.beginPath();
+        ctx.roundRect(towerX - towerW * .5, -bodyH - towerH, towerW, towerH + bodyH, [4, 4, 0, 0]);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(40, 80, 120, .15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Periscope
+        ctx.strokeStyle = '#132c45';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(towerX, -bodyH - towerH);
+        ctx.lineTo(towerX, -bodyH - towerH - bodyLen * .18);
+        ctx.stroke();
+        ctx.fillStyle = '#132c45';
+        ctx.fillRect(towerX - 5, -bodyH - towerH - bodyLen * .18 - 4, 10, 8);
+
+        // Propeller hub
+        ctx.fillStyle = '#1a2e42';
+        ctx.beginPath();
+        ctx.arc(-bodyLen * .38, 0, bodyH * .55, 0, TAU);
+        ctx.fill();
+
+        // Spinning propeller blades
+        const bladeA = state.time * 7;
+        ctx.strokeStyle = 'rgba(55, 100, 145, .32)';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 3; i++) {
+          const a = bladeA + (i * TAU / 3);
+          ctx.beginPath();
+          ctx.moveTo(-bodyLen * .38, 0);
+          ctx.lineTo(-bodyLen * .38 + Math.cos(a) * bodyH * 1.5, Math.sin(a) * bodyH * 1.5);
+          ctx.stroke();
+        }
+
+        // Rear fin (top)
+        ctx.fillStyle = '#091a2c';
+        ctx.beginPath();
+        ctx.moveTo(-bodyLen * .32, -bodyH * .7);
+        ctx.lineTo(-bodyLen * .38, -bodyH * 1.6);
+        ctx.lineTo(-bodyLen * .22, -bodyH * .7);
+        ctx.fill();
+
+        // Rear fin (bottom)
+        ctx.fillStyle = '#071525';
+        ctx.beginPath();
+        ctx.moveTo(-bodyLen * .32, bodyH * .7);
+        ctx.lineTo(-bodyLen * .38, bodyH * 1.6);
+        ctx.lineTo(-bodyLen * .22, bodyH * .7);
+        ctx.fill();
+
+        // Porthole lights — warm glow
+        for (let i = -2; i <= 1; i++) {
+          const px = i * bodyLen * .11;
+          const glow = ctx.createRadialGradient(px, 0, 0, px, 0, bodyH * .38);
+          glow.addColorStop(0, 'rgba(255, 210, 130, .35)');
+          glow.addColorStop(.6, 'rgba(255, 180, 90, .08)');
+          glow.addColorStop(1, 'rgba(255, 140, 60, 0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(px, 0, bodyH * .38, 0, TAU);
+          ctx.fill();
+          // Inner bright spot
+          ctx.fillStyle = 'rgba(255, 230, 170, .22)';
+          ctx.beginPath();
+          ctx.arc(px, 0, bodyH * .18, 0, TAU);
+          ctx.fill();
+        }
+
+        // Searchlight beam (subtle)
+        ctx.globalAlpha = .06;
+        ctx.fillStyle = '#ffe8b0';
+        ctx.beginPath();
+        ctx.moveTo(bodyLen * .36, -bodyH * .15);
+        ctx.lineTo(bodyLen * .7, -bodyH * .7);
+        ctx.lineTo(bodyLen * .7, bodyH * .7);
+        ctx.lineTo(bodyLen * .36, bodyH * .15);
+        ctx.fill();
+
+        ctx.restore();
       }
 
       function drawBubbles() {
@@ -3055,7 +3220,7 @@
           const dt = Math.min(.04, Math.max(0, (now - last) / 1000 || 0));
           last = now;
           if (state.running && !state.paused && !state.over) update(dt);
-          else updateBubbles(dt);
+          else { updateBubbles(dt); updateSubmarine(dt); }
           render();
         } catch (err) {
           console.error('Sea Defender error:', err);
