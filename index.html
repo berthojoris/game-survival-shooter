@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Wave Defender</title>
+  <title>Sea Defender</title>
   <style>
     :root {
       color-scheme: dark;
@@ -318,12 +318,12 @@
   </style>
 </head>
 <body>
-  <canvas id="game" aria-label="Wave Defender game canvas"></canvas>
+  <canvas id="game" aria-label="Sea Defender game canvas"></canvas>
 
   <div id="hud">
     <div class="panel">
       <div class="topline">
-        <span>Wave Defender</span>
+        <span>Sea Defender</span>
         <span id="status">Ready</span>
       </div>
       <div class="stat-grid">
@@ -349,7 +349,7 @@
 
   <div class="overlay show" id="overlay">
     <div class="card">
-      <h1 id="overlayTitle">Wave Defender</h1>
+      <h1 id="overlayTitle">Sea Defender</h1>
       <p class="subtitle" id="overlayText">
         A tiny reef fish strapped with a torpedo cannon must survive waves of sharks, eels, squids, jellyfish, rays, and deep-sea bosses.
       </p>
@@ -3058,7 +3058,7 @@
           else updateBubbles(dt);
           render();
         } catch (err) {
-          console.error('Wave Defender error:', err);
+          console.error('Sea Defender error:', err);
         }
         requestAnimationFrame(loop);
       }
