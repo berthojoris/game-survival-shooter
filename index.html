@@ -281,6 +281,40 @@
       transform: translateY(0) scale(1);
     }
 
+    #touchStick {
+      position: fixed;
+      z-index: 4;
+      left: 0;
+      top: 0;
+      width: 96px;
+      height: 96px;
+      border: 2px solid rgba(70, 242, 255, .35);
+      border-radius: 50%;
+      background: rgba(3, 18, 35, .18);
+      box-shadow: inset 0 0 18px rgba(70, 242, 255, .12), 0 0 22px rgba(70, 242, 255, .12);
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: opacity .1s ease;
+    }
+
+    #touchStick.show {
+      opacity: 1;
+    }
+
+    #touchStick::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, .9), rgba(70, 242, 255, .55));
+      box-shadow: 0 0 18px rgba(70, 242, 255, .42);
+      transform: translate(calc(-50% + var(--stick-x, 0px)), calc(-50% + var(--stick-y, 0px)));
+    }
+
     @media (max-width: 860px) {
       #hud {
         grid-template-columns: 1fr;
@@ -346,6 +380,7 @@
   </div>
 
   <div id="banner"></div>
+  <div id="touchStick" aria-hidden="true"></div>
 
   <div class="overlay show" id="overlay">
     <div class="card">
@@ -370,6 +405,7 @@
       const overlayStats = document.getElementById('overlayStats');
       const startButton = document.getElementById('startButton');
       const banner = document.getElementById('banner');
+      const touchStick = document.getElementById('touchStick');
       const hud = {
         status: document.getElementById('status'),
         wave: document.getElementById('wave'),
@@ -570,6 +606,7 @@
       const STORAGE_KEY = 'wave-defender-best';
       const keys = new Set();
       const pointer = { x: 0, y: 0, down: false, active: false };
+      const touchMove = { active: false, pointerId: null, startX: 0, startY: 0, x: 0, y: 0 };
       const state = {
         running: false,
         paused: false,
@@ -666,6 +703,27 @@
         return Math.hypot(a - x, b - y);
       }
 
+      function isTouchPointer(event) {
+        return event.pointerType === 'touch' || event.pointerType === 'pen';
+      }
+
+      function updateTouchStick() {
+        if (!touchMove.active) {
+          touchStick.classList.remove('show');
+          return;
+        }
+        const dx = touchMove.x - touchMove.startX;
+        const dy = touchMove.y - touchMove.startY;
+        const max = 40;
+        const len = Math.hypot(dx, dy);
+        const scale = len > max ? max / len : 1;
+        touchStick.style.left = `${touchMove.startX}px`;
+        touchStick.style.top = `${touchMove.startY}px`;
+        touchStick.style.setProperty('--stick-x', `${dx * scale}px`);
+        touchStick.style.setProperty('--stick-y', `${dy * scale}px`);
+        touchStick.classList.add('show');
+      }
+
       function resize() {
         W = window.innerWidth;
         H = window.innerHeight;
@@ -757,6 +815,8 @@
           baseSpeed: 285,
           powers: Object.create(null)
         });
+        touchMove.active = false;
+        updateTouchStick();
         hideOverlay();
         startWave();
         updateHud(true);
@@ -766,6 +826,9 @@
         BGM.stop();
         state.over = true;
         state.running = false;
+        touchMove.active = false;
+        touchMove.pointerId = null;
+        updateTouchStick();
         if (state.score > state.best) {
           state.best = state.score;
           localStorage.setItem(STORAGE_KEY, String(state.best));
@@ -877,6 +940,15 @@
         const down = keys.has('KeyS') || keys.has('ArrowDown');
         let mx = (right ? 1 : 0) - (left ? 1 : 0);
         let my = (down ? 1 : 0) - (up ? 1 : 0);
+        if (touchMove.active) {
+          const dx = touchMove.x - touchMove.startX;
+          const dy = touchMove.y - touchMove.startY;
+          const len = Math.hypot(dx, dy);
+          if (len > 10) {
+            mx = dx / len;
+            my = dy / len;
+          }
+        }
         if (mx || my) {
           const len = Math.hypot(mx, my);
           mx /= len;
@@ -3233,6 +3305,11 @@
         pointer.x = event.clientX - rect.left;
         pointer.y = event.clientY - rect.top;
         pointer.active = true;
+        if (touchMove.active && event.pointerId === touchMove.pointerId) {
+          touchMove.x = event.clientX;
+          touchMove.y = event.clientY;
+          updateTouchStick();
+        }
       }
 
       window.addEventListener('resize', () => {
@@ -3257,12 +3334,31 @@
         pointer.down = true;
         if (canvas.setPointerCapture) canvas.setPointerCapture(event.pointerId);
         if (!state.running || state.over) startGame();
+        if (isTouchPointer(event)) {
+          touchMove.active = true;
+          touchMove.pointerId = event.pointerId;
+          touchMove.startX = event.clientX;
+          touchMove.startY = event.clientY;
+          touchMove.x = event.clientX;
+          touchMove.y = event.clientY;
+          updateTouchStick();
+        }
       });
-      canvas.addEventListener('pointerup', () => {
+      canvas.addEventListener('pointerup', (event) => {
         pointer.down = false;
+        if (event.pointerId === touchMove.pointerId) {
+          touchMove.active = false;
+          touchMove.pointerId = null;
+          updateTouchStick();
+        }
       });
-      canvas.addEventListener('pointercancel', () => {
+      canvas.addEventListener('pointercancel', (event) => {
         pointer.down = false;
+        if (event.pointerId === touchMove.pointerId) {
+          touchMove.active = false;
+          touchMove.pointerId = null;
+          updateTouchStick();
+        }
       });
 
       startButton.addEventListener('click', () => {
