@@ -281,9 +281,9 @@
       transform: translateY(0) scale(1);
     }
 
-    #touchStick {
+    .touch-stick {
       position: fixed;
-      z-index: 4;
+      z-index: 6;
       left: var(--stick-left, 0px);
       top: var(--stick-top, 0px);
       width: 96px;
@@ -294,16 +294,17 @@
       box-shadow: inset 0 0 20px rgba(255, 255, 255, .08), 0 0 24px rgba(70, 242, 255, .1);
       opacity: 0;
       pointer-events: none;
+      touch-action: none;
       transform: translate(-50%, -50%);
       transition: opacity .1s ease, transform .1s ease;
     }
 
-    #touchStick.show {
+    .touch-stick.show {
       opacity: .82;
       transform: translate(-50%, -50%) scale(1.04);
     }
 
-    #touchStick::after {
+    .touch-stick::after {
       content: "";
       position: absolute;
       left: 50%;
@@ -316,21 +317,53 @@
       transform: translate(calc(-50% + var(--stick-x, 0px)), calc(-50% + var(--stick-y, 0px)));
     }
 
-    @media (max-width: 860px) {
-      #touchStick {
-        --stick-left: 88px;
+    .touch-stick-label {
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 8px);
+      color: rgba(234, 255, 255, .52);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      transform: translateX(-50%);
+    }
+
+    @media (pointer: coarse), (max-width: 860px) {
+      .touch-stick {
         --stick-top: calc(100dvh - 92px);
         width: 112px;
         height: 112px;
         opacity: .34;
+        pointer-events: auto;
         backdrop-filter: blur(4px);
       }
 
-      #touchStick.show {
+      #moveStick {
+        --stick-left: 88px;
+      }
+
+      #shootStick {
+        --stick-left: calc(100vw - 88px);
+      }
+
+      #shootStick::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 230, 109, .16), rgba(255, 95, 184, .08) 62%, transparent);
+        transform: translate(-50%, -50%);
+      }
+
+      .touch-stick.show {
         opacity: .76;
       }
 
-      #touchStick::after {
+      .touch-stick::after {
         width: 38px;
         height: 38px;
       }
@@ -399,7 +432,8 @@
   </div>
 
   <div id="banner"></div>
-  <div id="touchStick" aria-hidden="true"></div>
+  <div class="touch-stick" id="moveStick" aria-hidden="true"><span class="touch-stick-label">Move</span></div>
+  <div class="touch-stick" id="shootStick" aria-hidden="true"><span class="touch-stick-label">Fire</span></div>
 
   <div class="overlay show" id="overlay">
     <div class="card">
@@ -424,7 +458,8 @@
       const overlayStats = document.getElementById('overlayStats');
       const startButton = document.getElementById('startButton');
       const banner = document.getElementById('banner');
-      const touchStick = document.getElementById('touchStick');
+      const moveStick = document.getElementById('moveStick');
+      const shootStick = document.getElementById('shootStick');
       const hud = {
         status: document.getElementById('status'),
         wave: document.getElementById('wave'),
@@ -626,6 +661,7 @@
       const keys = new Set();
       const pointer = { x: 0, y: 0, down: false, active: false };
       const touchMove = { active: false, pointerId: null, startX: 0, startY: 0, x: 0, y: 0 };
+      const touchShoot = { active: false, pointerId: null, startX: 0, startY: 0, x: 0, y: 0 };
       const state = {
         running: false,
         paused: false,
@@ -723,28 +759,84 @@
       }
 
       function isTouchPointer(event) {
-        return event.pointerType === 'touch' || event.pointerType === 'pen';
+        return event.pointerType !== 'mouse';
       }
 
-      function updateTouchStick() {
-        if (!touchMove.active) {
-          touchStick.classList.remove('show');
-          touchStick.style.removeProperty('--stick-left');
-          touchStick.style.removeProperty('--stick-top');
-          touchStick.style.setProperty('--stick-x', '0px');
-          touchStick.style.setProperty('--stick-y', '0px');
+      function stickCenter(stick) {
+        const rect = stick.getBoundingClientRect();
+        return {
+          x: rect.left + rect.width * 0.5,
+          y: rect.top + rect.height * 0.5
+        };
+      }
+
+      function beginTouchMove(event, fromStick) {
+        const center = fromStick ? stickCenter(moveStick) : { x: event.clientX, y: event.clientY };
+        touchMove.active = true;
+        touchMove.pointerId = event.pointerId;
+        touchMove.startX = center.x;
+        touchMove.startY = center.y;
+        touchMove.x = event.clientX;
+        touchMove.y = event.clientY;
+        updateStick(moveStick, touchMove);
+      }
+
+      function endTouchMove(pointerId) {
+        if (pointerId !== touchMove.pointerId) return;
+        touchMove.active = false;
+        touchMove.pointerId = null;
+        updateStick(moveStick, touchMove);
+      }
+
+      function beginTouchShoot(event) {
+        const center = stickCenter(shootStick);
+        touchShoot.active = true;
+        touchShoot.pointerId = event.pointerId;
+        touchShoot.startX = center.x;
+        touchShoot.startY = center.y;
+        touchShoot.x = event.clientX;
+        touchShoot.y = event.clientY;
+        updateStick(shootStick, touchShoot);
+        updateTouchAim();
+      }
+
+      function endTouchShoot(pointerId) {
+        if (pointerId !== touchShoot.pointerId) return;
+        touchShoot.active = false;
+        touchShoot.pointerId = null;
+        updateStick(shootStick, touchShoot);
+      }
+
+      function updateStick(stick, input) {
+        if (!input.active) {
+          stick.classList.remove('show');
+          stick.style.removeProperty('--stick-left');
+          stick.style.removeProperty('--stick-top');
+          stick.style.setProperty('--stick-x', '0px');
+          stick.style.setProperty('--stick-y', '0px');
           return;
         }
-        const dx = touchMove.x - touchMove.startX;
-        const dy = touchMove.y - touchMove.startY;
+        const dx = input.x - input.startX;
+        const dy = input.y - input.startY;
         const max = 40;
         const len = Math.hypot(dx, dy);
         const scale = len > max ? max / len : 1;
-        touchStick.style.setProperty('--stick-left', `${touchMove.startX}px`);
-        touchStick.style.setProperty('--stick-top', `${touchMove.startY}px`);
-        touchStick.style.setProperty('--stick-x', `${dx * scale}px`);
-        touchStick.style.setProperty('--stick-y', `${dy * scale}px`);
-        touchStick.classList.add('show');
+        stick.style.setProperty('--stick-left', `${input.startX}px`);
+        stick.style.setProperty('--stick-top', `${input.startY}px`);
+        stick.style.setProperty('--stick-x', `${dx * scale}px`);
+        stick.style.setProperty('--stick-y', `${dy * scale}px`);
+        stick.classList.add('show');
+      }
+
+      function updateTouchAim() {
+        const dx = touchShoot.x - touchShoot.startX;
+        const dy = touchShoot.y - touchShoot.startY;
+        const len = Math.hypot(dx, dy);
+        if (len > 10) {
+          pointer.x = player.x + (dx / len) * 140;
+          pointer.y = player.y + (dy / len) * 140;
+          pointer.active = true;
+        }
       }
 
       function resize() {
@@ -839,7 +931,11 @@
           powers: Object.create(null)
         });
         touchMove.active = false;
-        updateTouchStick();
+        touchMove.pointerId = null;
+        touchShoot.active = false;
+        touchShoot.pointerId = null;
+        updateStick(moveStick, touchMove);
+        updateStick(shootStick, touchShoot);
         hideOverlay();
         startWave();
         updateHud(true);
@@ -851,7 +947,10 @@
         state.running = false;
         touchMove.active = false;
         touchMove.pointerId = null;
-        updateTouchStick();
+        touchShoot.active = false;
+        touchShoot.pointerId = null;
+        updateStick(moveStick, touchMove);
+        updateStick(shootStick, touchShoot);
         if (state.score > state.best) {
           state.best = state.score;
           localStorage.setItem(STORAGE_KEY, String(state.best));
@@ -990,7 +1089,7 @@
           player.powers[key] -= dt;
           if (player.powers[key] <= 0) delete player.powers[key];
         }
-        if (pointer.down || keys.has('Space') || keys.has('KeyJ')) {
+        if (touchShoot.active || pointer.down || keys.has('Space') || keys.has('KeyJ')) {
           fireTorpedo();
         }
       }
@@ -3328,11 +3427,6 @@
         pointer.x = event.clientX - rect.left;
         pointer.y = event.clientY - rect.top;
         pointer.active = true;
-        if (touchMove.active && event.pointerId === touchMove.pointerId) {
-          touchMove.x = event.clientX;
-          touchMove.y = event.clientY;
-          updateTouchStick();
-        }
       }
 
       window.addEventListener('resize', () => {
@@ -3354,34 +3448,60 @@
       canvas.addEventListener('pointermove', setPointer);
       canvas.addEventListener('pointerdown', (event) => {
         setPointer(event);
+        if (!state.running || state.over) startGame();
+        if (isTouchPointer(event)) return;
         pointer.down = true;
         if (canvas.setPointerCapture) canvas.setPointerCapture(event.pointerId);
-        if (!state.running || state.over) startGame();
-        if (isTouchPointer(event)) {
-          touchMove.active = true;
-          touchMove.pointerId = event.pointerId;
-          touchMove.startX = event.clientX;
-          touchMove.startY = event.clientY;
-          touchMove.x = event.clientX;
-          touchMove.y = event.clientY;
-          updateTouchStick();
-        }
       });
       canvas.addEventListener('pointerup', (event) => {
         pointer.down = false;
-        if (event.pointerId === touchMove.pointerId) {
-          touchMove.active = false;
-          touchMove.pointerId = null;
-          updateTouchStick();
-        }
+        endTouchMove(event.pointerId);
+        endTouchShoot(event.pointerId);
       });
       canvas.addEventListener('pointercancel', (event) => {
         pointer.down = false;
-        if (event.pointerId === touchMove.pointerId) {
-          touchMove.active = false;
-          touchMove.pointerId = null;
-          updateTouchStick();
+        endTouchMove(event.pointerId);
+        endTouchShoot(event.pointerId);
+      });
+
+      moveStick.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        if (moveStick.setPointerCapture) moveStick.setPointerCapture(event.pointerId);
+        if (!state.running || state.over) startGame();
+        beginTouchMove(event, true);
+      });
+
+      shootStick.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        if (shootStick.setPointerCapture) shootStick.setPointerCapture(event.pointerId);
+        if (!state.running || state.over) startGame();
+        beginTouchShoot(event);
+      });
+
+      window.addEventListener('pointermove', (event) => {
+        if (touchMove.active && event.pointerId === touchMove.pointerId) {
+          touchMove.x = event.clientX;
+          touchMove.y = event.clientY;
+          updateStick(moveStick, touchMove);
         }
+        if (touchShoot.active && event.pointerId === touchShoot.pointerId) {
+          touchShoot.x = event.clientX;
+          touchShoot.y = event.clientY;
+          updateStick(shootStick, touchShoot);
+          updateTouchAim();
+        }
+      });
+
+      window.addEventListener('pointerup', (event) => {
+        pointer.down = false;
+        endTouchMove(event.pointerId);
+        endTouchShoot(event.pointerId);
+      });
+
+      window.addEventListener('pointercancel', (event) => {
+        pointer.down = false;
+        endTouchMove(event.pointerId);
+        endTouchShoot(event.pointerId);
       });
 
       startButton.addEventListener('click', () => {
